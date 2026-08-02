@@ -1,0 +1,26 @@
+name: macOS
+
+on:
+  push:
+    branches: [main, claude/writers-block-stackable-blocks-de58nz]
+    paths:
+      - 'mac/**'
+      - '.github/workflows/mac.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mac-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: WriterblocksCore
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Test
+        run: swift test --package-path mac

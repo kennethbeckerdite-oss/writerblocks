@@ -1,0 +1,105 @@
+import XCTest
+@testable import WriterblocksCore
+
+/// The deck is meant to be rewritten by whoever is using the tool. These are
+/// the rules an edited deck still has to obey, so a bad edit fails here rather
+/// than halfway through someone's writing session.
+final class QuestionsTests: XCTestCase {
+
+    func testDeckLoadsFromBundle() {
+        XCTAssertEqual(Questions.all.count, 62)
+    }
+
+    func testEveryOptionalFieldSurvivedTheJSONRoundTrip() {
+        // If these come back empty the JSON export silently dropped fields and
+        // the whole deck would behave differently.
+        XCTAssertEqual(Questions.all.filter { $0.spawns != nil }.count, 4)
+        XCTAssertEqual(Questions.all.filter { $0.unlocks != nil }.count, 5)
+        XCTAssertEqual(Questions.all.filter { $0.beat != nil }.count, 13)
+        XCTAssertEqual(Questions.all.filter { $0.isRepeatable }.count, 3)
+        XCTAssertEqual(Questions.all.filter { $0.hint != nil }.count, 5)
+    }
+
+    func testIdsAreUnique() {
+        XCTAssertEqual(Set(Questions.all.map(\.id)).count, Questions.all.count)
+    }
+
+    func testTheDeckOpensWithTheLogline() {
+        XCTAssertEqual(Questions.all.min { $0.priority < $1.priority }?.id, "logline")
+    }
+
+    func testOnlyUnlocksQuestionsThatExist() {
+        for q in Questions.all {
+            for childId in q.unlocks ?? [] {
+                XCTAssertNotNil(Questions.question(childId), "\(q.id) unlocks missing \(childId)")
+            }
+        }
+    }
+
+    func testUnlocksStayWithinTheSameStrandType() {
+        // A parent on another strand type could never be answered for this
+        // strand, so the child would be unreachable forever.
+        for q in Questions.all {
+            for childId in q.unlocks ?? [] {
+                XCTAssertEqual(Questions.question(childId)?.strandType, q.strandType, "\(q.id) -> \(childId)")
+            }
+        }
+    }
+
+    func testEveryGatedQuestionHasAFindableParent() {
+        for id in Questions.gatedIds {
+            XCTAssertFalse(Questions.parentsOf(id).isEmpty, "\(id) has no parent")
+        }
+    }
+
+    func testNoQuestionGatesItself() {
+        for q in Questions.all {
+            XCTAssertFalse(q.unlocks?.contains(q.id) ?? false, "\(q.id) gates itself")
+        }
+    }
+
+    func testSubjectPlaceholderOnlyWhereTheStrandHasARealName() {
+        // Premise and scene strands are named "Premise" and "Scenes";
+        // substituting those into a question produces nonsense.
+        for q in Questions.all where q.strandType == .premise || q.strandType == .scene {
+            XCTAssertFalse(q.text.contains("{subject}"), "\(q.id) substitutes a generic strand name")
+        }
+    }
+
+    func testCharacterQuestionsNameTheirCharacter() {
+        // A gated follow-up is exempt: "what's standing in the way of that?" is
+        // asked right after its parent, which already named who we mean.
+        for q in Questions.all where q.strandType == .character && !Questions.gatedIds.contains(q.id) {
+            XCTAssertTrue(q.text.contains("{subject}"), "\(q.id) never names its character")
+        }
+    }
+
+    func testBeatsOnlyOnSceneQuestions() {
+        for q in Questions.all where q.beat != nil {
+            XCTAssertEqual(q.strandType, .scene, "\(q.id) has a beat but is not a scene")
+        }
+    }
+
+    func testSpawnsOnlyFromThePremise() {
+        for q in Questions.all where q.spawns != nil {
+            XCTAssertEqual(q.strandType, .premise, "\(q.id) spawns but is not on the premise")
+        }
+    }
+
+    func testCoachingLivesInTheHintNotTheQuestion() {
+        // The question text is stored on the block and read back in the
+        // outline; a long compound question makes for a bad outline line.
+        for q in Questions.all {
+            XCTAssertLessThan(q.text.count, 70, "\(q.id) is too long to read back in an outline")
+            if let hint = q.hint {
+                XCTAssertFalse(q.text.contains(hint), "\(q.id) repeats its hint in the question")
+            }
+        }
+    }
+
+    func testEverySectionAsksSomething() {
+        for type in StrandType.allCases {
+            XCTAssertGreaterThan(Questions.all.filter { $0.strandType == type }.count, 3, "\(type)")
+        }
+    }
+}
