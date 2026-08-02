@@ -17,7 +17,8 @@ let package = Package(
         ),
         .testTarget(
             name: "WriterblocksCoreTests",
-            dependencies: ["WriterblocksCore"]
+            dependencies: ["WriterblocksCore"],
+            resources: [.process("Fixtures")]
         )
     ]
 )
