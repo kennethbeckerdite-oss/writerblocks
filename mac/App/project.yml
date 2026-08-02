@@ -1,0 +1,64 @@
+name: Writerblocks
+
+# Generated with XcodeGen (`xcodegen generate`) so the repo holds a readable
+# spec instead of a .pbxproj that conflicts on every edit.
+
+options:
+  bundleIdPrefix: com.writerblocks
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+packages:
+  WriterblocksCore:
+    path: ..
+
+targets:
+  Writerblocks:
+    type: application
+    platform: macOS
+    sources:
+      - path: Writerblocks
+    dependencies:
+      - package: WriterblocksCore
+        product: WriterblocksCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.writerblocks.app
+        PRODUCT_NAME: Writerblocks
+        MARKETING_VERSION: "0.1"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_VERSION: "5.0"
+        ENABLE_HARDENED_RUNTIME: YES
+        # Unsigned builds run fine locally; signing is only needed to hand the
+        # app to someone else.
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: NO
+        COMBINE_HIDPI_IMAGES: YES
+    info:
+      path: Writerblocks/Info.plist
+      properties:
+        CFBundleName: Writerblocks
+        CFBundlePackageType: APPL
+        CFBundleShortVersionString: "0.1"
+        LSMinimumSystemVersion: "14.0"
+        NSHumanReadableCopyright: ""
+        LSApplicationCategoryType: public.app-category.productivity
+
+        # Declares the .writerblocks document type, so stories get an icon and
+        # open on double-click.
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: writerblocks story
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Owner
+            LSItemContentTypes:
+              - com.writerblocks.story
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.writerblocks.story
+            UTTypeDescription: writerblocks story
+            UTTypeConformsTo:
+              - public.json
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - writerblocks

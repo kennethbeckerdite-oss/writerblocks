@@ -24,3 +24,29 @@ jobs:
 
       - name: Test
         run: swift test --package-path mac
+
+  app:
+    name: Writerblocks.app
+    needs: core
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        working-directory: mac/App
+        run: xcodegen generate
+
+      # Compile only — this proves the app builds, not that it feels right.
+      - name: Build
+        working-directory: mac/App
+        run: |
+          xcodebuild build \
+            -project Writerblocks.xcodeproj \
+            -scheme Writerblocks \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
