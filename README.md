@@ -2,6 +2,11 @@
 
 Small questions, stacked into blocks, assembled into a first outline.
 
+**→ [kennethbeckerdite-oss.github.io/writerblocks](https://kennethbeckerdite-oss.github.io/writerblocks/)**
+
+Your work is saved in your own browser and never leaves it, so it lives with the
+browser you write in. Use **Export .json** to move a story somewhere else.
+
 ## The idea
 
 In *Zen and the Art of Motorcycle Maintenance*, a student can't write a
