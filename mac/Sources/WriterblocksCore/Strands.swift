@@ -200,6 +200,33 @@ public enum Stories {
         }
     }
 
+    /// Move a block to the gap at `toDisplayIndex`, where the index counts gaps
+    /// in the column *as displayed* — which includes the block being dragged
+    /// when it started in that column.
+    ///
+    /// `moveBlock(toIndex:)` inserts into the column with the moved block
+    /// already lifted out, so a drop below the block's own position has to shift
+    /// down by one. Keeping that off-by-one here rather than in the board means
+    /// it is covered by tests.
+    public static func moveBlock(
+        _ project: Project,
+        blockId: String,
+        toStrandId: String,
+        toDisplayIndex: Int
+    ) -> Project {
+        guard let moving = project.blocks.first(where: { $0.id == blockId }) else { return project }
+
+        var index = toDisplayIndex
+        if moving.strandId == toStrandId {
+            let column = blocks(of: project, strandId: toStrandId)
+            if let current = column.firstIndex(where: { $0.id == blockId }), current < toDisplayIndex {
+                index -= 1
+            }
+        }
+
+        return moveBlock(project, blockId: blockId, toStrandId: toStrandId, toIndex: index)
+    }
+
     public static func renameProject(_ project: Project, title: String) -> Project {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return touched(project) { $0.title = trimmed.isEmpty ? "Untitled story" : trimmed }

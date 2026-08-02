@@ -173,4 +173,68 @@ final class StoriesTests: XCTestCase {
 
         XCTAssertEqual(Stories.moveBlock(project, blockId: a.id, toStrandId: "nope", toIndex: 0), project)
     }
+
+    // MARK: - Dropping into a gap on the board
+    //
+    // The board drops into the gaps *between* cards, so its index counts the
+    // column as displayed — including the card being dragged. Getting this
+    // off-by-one wrong makes a block land one position from where the insertion
+    // line promised, which is worse than no indicator at all.
+
+    func testDroppingIntoTheGapBelowItselfLandsWhereTheLineShowed() throws {
+        let (project, strandId, _) = try threeBlocks()
+        let a = try XCTUnwrap(project.blocks.first { $0.answer == "a" })
+
+        // [a, b, c] — drop "a" into the gap between b and c (display index 2).
+        let moved = Stories.moveBlock(
+            project, blockId: a.id, toStrandId: strandId, toDisplayIndex: 2
+        )
+        XCTAssertEqual(answers(moved, strandId: strandId), ["b", "a", "c"])
+    }
+
+    func testDroppingIntoTheGapAboveItselfNeedsNoShift() throws {
+        let (project, strandId, _) = try threeBlocks()
+        let c = try XCTUnwrap(project.blocks.first { $0.answer == "c" })
+
+        let moved = Stories.moveBlock(
+            project, blockId: c.id, toStrandId: strandId, toDisplayIndex: 0
+        )
+        XCTAssertEqual(answers(moved, strandId: strandId), ["c", "a", "b"])
+    }
+
+    func testDroppingIntoTheLastGapMovesToTheEnd() throws {
+        let (project, strandId, _) = try threeBlocks()
+        let a = try XCTUnwrap(project.blocks.first { $0.answer == "a" })
+
+        let moved = Stories.moveBlock(
+            project, blockId: a.id, toStrandId: strandId, toDisplayIndex: 3
+        )
+        XCTAssertEqual(answers(moved, strandId: strandId), ["b", "c", "a"])
+    }
+
+    func testDroppingIntoItsOwnGapChangesNothing() throws {
+        let (project, strandId, _) = try threeBlocks()
+        let b = try XCTUnwrap(project.blocks.first { $0.answer == "b" })
+
+        for index in [1, 2] {
+            let moved = Stories.moveBlock(
+                project, blockId: b.id, toStrandId: strandId, toDisplayIndex: index
+            )
+            XCTAssertEqual(answers(moved, strandId: strandId), ["a", "b", "c"], "gap \(index)")
+        }
+    }
+
+    func testDroppingIntoAnotherColumnNeedsNoShift() throws {
+        let (project, strandId, otherId) = try threeBlocks()
+        var p = Stories.addFreeBlock(project, strandId: otherId, answer: "x")
+        p = Stories.addFreeBlock(p, strandId: otherId, answer: "y")
+        let b = try XCTUnwrap(p.blocks.first { $0.answer == "b" })
+
+        // The dragged block is not in the target column, so display index and
+        // insertion index are the same.
+        let moved = Stories.moveBlock(p, blockId: b.id, toStrandId: otherId, toDisplayIndex: 1)
+
+        XCTAssertEqual(answers(moved, strandId: otherId), ["x", "b", "y"])
+        XCTAssertEqual(answers(moved, strandId: strandId), ["a", "c"])
+    }
 }

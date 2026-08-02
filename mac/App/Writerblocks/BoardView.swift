@@ -1,6 +1,13 @@
 import SwiftUI
 import WriterblocksCore
 
+/// Where a dragged block would land if it were dropped right now.
+private struct DropTarget: Equatable {
+    let strandId: String
+    /// Index in the column's list *including* the block being dragged.
+    let index: Int
+}
+
 /// Every block as a card, grouped in columns. Drag to reorder, drag between
 /// columns; a block's column decides where it lands in the outline.
 struct BoardView: View {
@@ -8,12 +15,24 @@ struct BoardView: View {
 
     @State private var newStrandType: StrandType = .character
     @State private var newStrandLabel = ""
+    @State private var dropTarget: DropTarget?
 
     private var strands: [Strand] {
         project.strands.sorted { $0.order < $1.order }
     }
 
+    /// Grouped once here rather than each column filtering the whole project on
+    /// every body evaluation — that recomputation is what made dragging stutter.
+    private var blocksByStrand: [String: [Block]] {
+        var grouped: [String: [Block]] = [:]
+        for block in project.blocks { grouped[block.strandId, default: []].append(block) }
+        for key in grouped.keys { grouped[key]?.sort { $0.order < $1.order } }
+        return grouped
+    }
+
     var body: some View {
+        let grouped = blocksByStrand
+
         VStack(spacing: 0) {
             addBar
             Divider()
@@ -21,7 +40,13 @@ struct BoardView: View {
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 16) {
                     ForEach(strands) { strand in
-                        StrandColumnView(project: $project, strand: strand)
+                        StrandColumnView(
+                            project: $project,
+                            dropTarget: $dropTarget,
+                            strand: strand,
+                            blocks: grouped[strand.id] ?? [],
+                            onMove: move
+                        )
                     }
                 }
                 .padding(16)
@@ -48,6 +73,10 @@ struct BoardView: View {
                 .disabled(newStrandLabel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
             Spacer()
+
+            Text("Drag a card by its text; the line shows where it lands.")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
         }
         .padding(12)
     }
@@ -58,20 +87,34 @@ struct BoardView: View {
         project = Stories.addStrand(project, type: newStrandType, label: label)
         newStrandLabel = ""
     }
+
+    /// `zoneIndex` counts the gaps in the column as displayed. The off-by-one
+    /// that comes with that lives in `Stories.moveBlock(toDisplayIndex:)`, where
+    /// it is covered by tests.
+    private func move(blockId: String, toStrandId: String, zoneIndex: Int) -> Bool {
+        guard project.blocks.contains(where: { $0.id == blockId }) else { return false }
+
+        withAnimation(.easeOut(duration: 0.16)) {
+            project = Stories.moveBlock(
+                project, blockId: blockId, toStrandId: toStrandId, toDisplayIndex: zoneIndex
+            )
+        }
+        return true
+    }
 }
+
+// MARK: - Column
 
 private struct StrandColumnView: View {
     @Binding var project: Project
+    @Binding var dropTarget: DropTarget?
     let strand: Strand
+    let blocks: [Block]
+    let onMove: (String, String, Int) -> Bool
 
     @State private var renaming = false
     @State private var draftLabel = ""
     @State private var newBlock = ""
-    @State private var targeted = false
-
-    private var blocks: [Block] {
-        project.blocks.filter { $0.strandId == strand.id }.sorted { $0.order < $1.order }
-    }
 
     private var typeLabel: String {
         switch strand.type {
@@ -88,14 +131,27 @@ private struct StrandColumnView: View {
             Divider()
 
             ScrollView {
-                VStack(spacing: 8) {
-                    ForEach(blocks) { block in
-                        BlockCardView(project: $project, block: block)
-                            .draggable(block.id)
-                            .dropDestination(for: String.self) { ids, _ in
-                                move(ids, before: block)
+                // Spacing is zero because the insertion zones *are* the gaps —
+                // so there is nowhere ambiguous to drop.
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in
+                        insertionZone(at: index)
+
+                        BlockCardView(
+                            block: block,
+                            onEdit: { answer in
+                                project = Stories.editBlock(project, blockId: block.id, answer: answer)
+                            },
+                            onDelete: {
+                                project = Stories.deleteBlock(project, blockId: block.id)
                             }
+                        )
+                        .draggable(block.id)
                     }
+
+                    // The last zone fills whatever is left, so dropping anywhere
+                    // below the cards appends rather than doing nothing.
+                    insertionZone(at: blocks.count, fills: true)
 
                     if blocks.isEmpty {
                         Text("Nothing here yet.")
@@ -103,17 +159,14 @@ private struct StrandColumnView: View {
                             .italic()
                             .foregroundStyle(.tertiary)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.vertical, 8)
+                            .allowsHitTesting(false)
                     }
                 }
-                .padding(8)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
                 .frame(maxWidth: .infinity)
             }
             .frame(maxHeight: 460)
-            // Dropping on the column's empty space appends to the end.
-            .dropDestination(for: String.self) { ids, _ in
-                move(ids, toIndex: blocks.count)
-            } isTargeted: { targeted = $0 }
 
             Divider()
             TextField("Add a block…", text: $newBlock)
@@ -133,7 +186,31 @@ private struct StrandColumnView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(targeted ? Color.accentColor : Color.secondary.opacity(0.25), lineWidth: 1)
+                .stroke(
+                    dropTarget?.strandId == strand.id
+                        ? Color.accentColor.opacity(0.6)
+                        : Color.secondary.opacity(0.25),
+                    lineWidth: 1
+                )
+        )
+    }
+
+    private func insertionZone(at index: Int, fills: Bool = false) -> some View {
+        InsertionZone(
+            isActive: dropTarget == DropTarget(strandId: strand.id, index: index),
+            fills: fills,
+            onTargeted: { targeted in
+                let target = DropTarget(strandId: strand.id, index: index)
+                if targeted {
+                    dropTarget = target
+                } else if dropTarget == target {
+                    dropTarget = nil
+                }
+            },
+            onDrop: { blockId in
+                dropTarget = nil
+                return onMove(blockId, strand.id, index)
+            }
         )
     }
 
@@ -173,8 +250,7 @@ private struct StrandColumnView: View {
                 Button {
                     project = Stories.deleteStrand(project, strandId: strand.id)
                 } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption)
+                    Image(systemName: "xmark").font(.caption)
                 }
                 .buttonStyle(.borderless)
                 .help("Delete \(strand.label) and its blocks")
@@ -182,28 +258,51 @@ private struct StrandColumnView: View {
         }
         .padding(10)
     }
+}
 
-    private func move(_ ids: [String], toIndex index: Int) -> Bool {
-        guard let blockId = ids.first else { return false }
-        project = Stories.moveBlock(
-            project, blockId: blockId, toStrandId: strand.id, toIndex: index
-        )
-        return true
-    }
+// MARK: - Insertion zone
 
-    private func move(_ ids: [String], before block: Block) -> Bool {
-        guard let blockId = ids.first, blockId != block.id else { return false }
-        let index = blocks.filter { $0.id != blockId }.firstIndex { $0.id == block.id } ?? blocks.count
-        return move([blockId], toIndex: index)
+/// The gap between two cards, and the only place a block can be dropped. Being
+/// an explicit target is what lets the board show a line for where the block is
+/// going instead of leaving the writer to guess.
+private struct InsertionZone: View {
+    let isActive: Bool
+    let fills: Bool
+    let onTargeted: (Bool) -> Void
+    let onDrop: (String) -> Bool
+
+    var body: some View {
+        Rectangle()
+            .fill(isActive ? Color.accentColor : Color.clear)
+            .frame(height: isActive ? 3 : 2)
+            .frame(maxWidth: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: 1.5))
+            .padding(.vertical, 4)
+            .frame(minHeight: fills ? 44 : nil, alignment: .top)
+            .contentShape(Rectangle())
+            .dropDestination(for: String.self) { ids, _ in
+                guard let blockId = ids.first else { return false }
+                return onDrop(blockId)
+            } isTargeted: { onTargeted($0) }
     }
 }
 
-private struct BlockCardView: View {
-    @Binding var project: Project
+// MARK: - Card
+
+/// Takes a plain `Block` and closures rather than a binding to the whole
+/// project, so SwiftUI can leave untouched cards alone while a drag is in
+/// flight.
+private struct BlockCardView: View, Equatable {
     let block: Block
+    let onEdit: (String) -> Void
+    let onDelete: () -> Void
 
     @State private var editing = false
     @State private var draft = ""
+
+    static func == (lhs: BlockCardView, rhs: BlockCardView) -> Bool {
+        lhs.block == rhs.block
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -217,7 +316,10 @@ private struct BlockCardView: View {
             if editing {
                 TextField("One sentence…", text: $draft)
                     .textFieldStyle(.plain)
-                    .onSubmit(commit)
+                    .onSubmit {
+                        onEdit(draft)
+                        editing = false
+                    }
             } else if block.answer.isEmpty {
                 Text("still open")
                     .italic()
@@ -249,19 +351,12 @@ private struct BlockCardView: View {
         )
         .contextMenu {
             Button("Edit", action: beginEditing)
-            Button("Delete", role: .destructive) {
-                project = Stories.deleteBlock(project, blockId: block.id)
-            }
+            Button("Delete", role: .destructive, action: onDelete)
         }
     }
 
     private func beginEditing() {
         draft = block.answer
         editing = true
-    }
-
-    private func commit() {
-        project = Stories.editBlock(project, blockId: block.id, answer: draft)
-        editing = false
     }
 }
