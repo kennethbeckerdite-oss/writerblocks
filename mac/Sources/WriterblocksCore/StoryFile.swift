@@ -121,8 +121,18 @@ public enum StoryFile {
         value as? String ?? fallback
     }
 
+    /// `value is Bool` is not usable here: Foundation bridges `NSNumber(0)` and
+    /// `NSNumber(1)` to `Bool` as well as to `Int`, so testing for Bool that way
+    /// would reject a perfectly good `beat: 0` or `order: 0`. JSONSerialization
+    /// represents a real JSON boolean as `CFBoolean`, which is distinguishable.
+    private static func isBoolean(_ value: Any) -> Bool {
+        CFGetTypeID(value as AnyObject) == CFBooleanGetTypeID()
+    }
+
     private static func double(_ value: Any?, _ fallback: Double) -> Double {
-        guard let n = value as? NSNumber, n.doubleValue.isFinite else { return fallback }
+        guard let value, !isBoolean(value),
+              let n = value as? NSNumber, n.doubleValue.isFinite
+        else { return fallback }
         return n.doubleValue
     }
 
@@ -131,10 +141,9 @@ public enum StoryFile {
     }
 
     private static func optionalInt(_ value: Any?) -> Int? {
-        // Bools bridge to NSNumber; a `true` must not silently become 1.
-        guard let n = value as? NSNumber, !(value is Bool), n.doubleValue.isFinite else {
-            return nil
-        }
+        guard let value, !isBoolean(value),
+              let n = value as? NSNumber, n.doubleValue.isFinite
+        else { return nil }
         return n.intValue
     }
 }

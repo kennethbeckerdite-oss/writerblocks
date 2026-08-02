@@ -123,7 +123,9 @@ final class StoryFileTests: XCTestCase {
 
     func testSortsStrandsIntoOrderOnTheWayIn() throws {
         var raw = try fixtureObject()
-        raw["strands"] = try XCTUnwrap(raw["strands"] as? [Any]).reversed()
+        // Array(...) matters: `.reversed()` alone yields a ReversedCollection,
+        // which is not `[Any]`, and parse would reject the whole document.
+        raw["strands"] = Array(try XCTUnwrap(raw["strands"] as? [Any]).reversed())
 
         let restored = try XCTUnwrap(StoryFile.parse(raw))
         XCTAssertEqual(restored.strands.map(\.order), restored.strands.map(\.order).sorted())
@@ -138,5 +140,26 @@ final class StoryFileTests: XCTestCase {
         ]
         let restored = StoryFile.parse(raw)
         XCTAssertNil(restored?.blocks.first?.beat)
+    }
+
+    /// The mirror of the test above, and the one that actually bit: Foundation
+    /// bridges `NSNumber(0)` and `NSNumber(1)` to `Bool` as well as to `Int`, so
+    /// a naive "is this a Bool?" guard throws away a legitimate zero. The very
+    /// first scene sits at beat 0 and the first block of every strand is at
+    /// order 0, so getting this wrong quietly reorders stories.
+    func testZeroAndOneAreKeptAsNumbers() throws {
+        let raw: [String: Any] = [
+            "strands": [["id": "s1", "type": "scene", "label": "Scenes", "order": 0]],
+            "blocks": [
+                ["id": "b1", "strandId": "s1", "answer": "opening", "beat": 0, "order": 0],
+                ["id": "b2", "strandId": "s1", "answer": "next", "beat": 1, "order": 1]
+            ]
+        ]
+        let restored = try XCTUnwrap(StoryFile.parse(raw))
+
+        XCTAssertEqual(restored.blocks.first?.beat, 0)
+        XCTAssertEqual(restored.blocks.first?.order, 0)
+        XCTAssertEqual(restored.blocks.last?.beat, 1)
+        XCTAssertEqual(restored.strands.first?.order, 0)
     }
 }
