@@ -2,10 +2,18 @@
 
 Small questions, stacked into blocks, assembled into a first outline.
 
-**→ [kennethbeckerdite-oss.github.io/writerblocks](https://kennethbeckerdite-oss.github.io/writerblocks/)**
+A **native macOS app** is being built in [`mac/`](mac) — see
+[Building the Mac app](#building-the-mac-app). It is the real destination: a
+story becomes a `.writerblocks` file you own, which Time Machine backs up,
+iCloud Drive syncs, and git can version.
 
-Your work is saved in your own browser and never leaves it, so it lives with the
-browser you write in. Use **Export .json** to move a story somewhere else.
+The **web version** was the visual prototype and is still live at
+[kennethbeckerdite-oss.github.io/writerblocks](https://kennethbeckerdite-oss.github.io/writerblocks/).
+It will be removed once the Mac app replaces it.
+
+> **If you have written anything in the web version, export it now.** Its work
+> lives in one browser's local storage and nowhere else. Use **Export .json** —
+> the Mac app reads exactly that format, and there is a test proving it.
 
 ## The idea
 
@@ -30,7 +38,41 @@ There is no AI in this. Nothing here calls a model, and the app makes no network
 requests at all. The value is the question, not a machine's opinion about your
 story.
 
-## Running it
+## Building the Mac app
+
+Needs a Mac with Xcode, plus [XcodeGen](https://github.com/yonaskolb/XcodeGen)
+(`brew install xcodegen`) — the repo holds a readable `project.yml` instead of a
+`.pbxproj` that conflicts on every edit.
+
+```sh
+cd mac/App
+xcodegen generate          # writes Writerblocks.xcodeproj (gitignored)
+open Writerblocks.xcodeproj
+```
+
+Then ⌘R. The app is unsigned, which is fine for running it yourself; signing is
+only needed to hand it to somebody else.
+
+The engine is a plain Swift package and needs no Xcode project at all:
+
+```sh
+swift test --package-path mac      # 70 tests
+```
+
+Both are built and tested on a real Mac by
+[`.github/workflows/mac.yml`](.github/workflows/mac.yml) on every push.
+
+### How it is put together
+
+`mac/Sources/WriterblocksCore/` is the engine — deck selection, story
+mutations, outline assembly, Markdown export, and the `.writerblocks` reader.
+Pure functions, no UI, no I/O, which is why it can be tested without Xcode.
+
+`mac/App/Writerblocks/` is the SwiftUI app. `StoryDocument` is a `FileDocument`,
+so Open, Save As, Duplicate, Rename, autosave, Versions and iCloud Drive all
+come from the system rather than from storage code written by hand.
+
+## Running the web prototype
 
 ```sh
 npm install
