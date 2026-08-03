@@ -251,8 +251,21 @@ private struct DroppableCard: View {
             .draggable(block.id)
             .dropDestination(for: String.self) { ids, _ in
                 targeted = false
-                guard let dragged = ids.first, dragged != block.id else { return false }
-                return onMove(dragged, strandId, displayIndex)
+                guard let dragged = ids.first else { return false }
+
+                // Accept immediately and reorder on the next tick. AppKit holds
+                // the dragged image on screen until this closure returns, so
+                // doing the move here means the ghost hangs in the air while the
+                // board re-renders, the store publishes and autosave is
+                // scheduled. Dropping onto itself still returns true: a false
+                // makes the system play its slide-back animation, which reads as
+                // the same hesitation.
+                if dragged != block.id {
+                    DispatchQueue.main.async {
+                        _ = onMove(dragged, strandId, displayIndex)
+                    }
+                }
+                return true
             } isTargeted: { targeted = $0 }
     }
 }
@@ -288,7 +301,10 @@ private struct AppendZone: View {
         .dropDestination(for: String.self) { ids, _ in
             targeted = false
             guard let dragged = ids.first else { return false }
-            return onDrop(dragged)
+            // Same reason as the card: return before doing the work, so the
+            // dragged image is dismissed at once.
+            DispatchQueue.main.async { _ = onDrop(dragged) }
+            return true
         } isTargeted: { targeted = $0 }
     }
 }
