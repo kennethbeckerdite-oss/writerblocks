@@ -113,12 +113,11 @@ enum StoryLibrary {
 
     // MARK: - Opening
 
-    static func open(_ url: URL) {
-        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { _, _, error in
-            if let error {
-                NSAlert(error: error).runModal()
-            }
-        }
+    /// Opening is routing now, not window management — see `AppRouter.open`.
+    /// A story that was opened is still recorded so it keeps its place on the
+    /// home screen even when it lives outside the default folder.
+    static func remember(_ url: URL) {
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
     }
 
     static func reveal(_ url: URL) {

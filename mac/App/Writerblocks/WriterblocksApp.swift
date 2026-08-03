@@ -1,54 +1,61 @@
+import AppKit
 import SwiftUI
 import WriterblocksCore
 
 @main
 struct WriterblocksApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
 
     var body: some Scene {
-        // A document app normally launches straight into an Open panel with no
-        // home screen at all. This one deliberately does not: the whole premise
-        // is that the app's front door is a question, so the launch window is
-        // the logline, with past work underneath it.
-        Window("Stories", id: WindowID.home) {
-            HomeView()
+        // One window. The dashboard and a story are two states of it, not two
+        // windows — which is what lets one crossfade into the other.
+        Window("writerblocks", id: "main") {
+            RootView()
         }
         .defaultSize(width: 1020, height: 720)
-
-        // ⌘N here creates an untitled story, which opens on the logline
-        // question anyway — the same first question the home screen asks.
-        DocumentGroup(newDocument: StoryDocument()) { file in
-            EditorView(document: file.$document)
-        }
         .commands {
-            CommandGroup(after: .saveItem) {
-                Divider()
-                Button("Export Markdown…") {
-                    NotificationCenter.default.post(name: .exportMarkdown, object: nil)
-                }
-                .keyboardShortcut("e", modifiers: [.command, .shift])
+            CommandGroup(replacing: .newItem) {
+                Button("New Story") { AppRouter.shared.newStory() }
+                    .keyboardShortcut("n")
+
+                Button("Open…") { AppRouter.shared.openPanel() }
+                    .keyboardShortcut("o")
             }
-            CommandGroup(after: .windowList) {
-                StoriesWindowButton()
+
+            CommandGroup(replacing: .saveItem) {
+                Button("Save") { AppRouter.shared.store?.saveNow() }
+                    .keyboardShortcut("s")
+                    .disabled(AppRouter.shared.store == nil)
+
+                Button("Export Markdown…") { AppRouter.shared.store?.exportMarkdown() }
+                    .keyboardShortcut("e", modifiers: [.command, .shift])
+                    .disabled(AppRouter.shared.store == nil)
+            }
+
+            CommandGroup(after: .toolbar) {
+                Button("Stories") { AppRouter.shared.goHome() }
+                    .keyboardShortcut("0", modifiers: .command)
             }
         }
     }
 }
 
-enum WindowID {
-    static let home = "home"
-}
+/// `DocumentGroup` used to handle double-clicking a story in Finder and saving
+/// on quit. Neither has any visible UI to remind us it is gone, so both are
+/// picked up here.
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
 
-/// Reopening the home window needs the environment action, which is only
-/// available inside a view.
-private struct StoriesWindowButton: View {
-    @Environment(\.openWindow) private var openWindow
-
-    var body: some View {
-        Button("Stories") { openWindow(id: WindowID.home) }
-            .keyboardShortcut("0", modifiers: .command)
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard let url = urls.first else { return }
+        AppRouter.shared.open(url)
     }
-}
 
-extension Notification.Name {
-    static let exportMarkdown = Notification.Name("writerblocks.exportMarkdown")
+    func applicationWillTerminate(_ notification: Notification) {
+        AppRouter.shared.store?.saveNow()
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        true
+    }
 }

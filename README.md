@@ -68,9 +68,18 @@ Both are built and tested on a real Mac by
 mutations, outline assembly, Markdown export, and the `.writerblocks` reader.
 Pure functions, no UI, no I/O, which is why it can be tested without Xcode.
 
-`mac/App/Writerblocks/` is the SwiftUI app. `StoryDocument` is a `FileDocument`,
-so Open, Save As, Duplicate, Rename, autosave, Versions and iCloud Drive all
-come from the system rather than from storage code written by hand.
+`mac/App/Writerblocks/` is the SwiftUI app. It runs in **one window**: the
+dashboard and an open story are two states of it, crossfading into each other
+(`RootView.swift`), rather than separate windows.
+
+That rules out `DocumentGroup`, which binds one window to one document — so
+`StoryStore.swift` owns the open story and does the saving: a debounced
+atomic write, forced on quit and when returning to the dashboard, with any
+failure surfaced in the story view rather than swallowed. Stories are still
+ordinary `.writerblocks` files, so Time Machine, iCloud Drive and git all work
+as before. What the app gives up by not using `DocumentGroup` is macOS
+Versions, automatic iCloud conflict resolution, and the standard
+Edited/Revert/Duplicate title-bar menu.
 
 ## Running the web prototype
 

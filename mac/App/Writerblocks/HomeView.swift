@@ -4,9 +4,15 @@ import WriterblocksCore
 /// The front door: one question, and your stories underneath it.
 struct HomeView: View {
 
+    /// Bumped by ⌘N to put the cursor back in the field.
+    let focusToken: Int
+    /// Routing is the caller's job — this view never opens a window.
+    let onOpen: (URL) -> Void
+
     @State private var logline = ""
     @State private var stories: [StoryCard] = []
     @State private var error: String?
+    @FocusState private var fieldFocused: Bool
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 16), count: 4)
 
@@ -25,8 +31,12 @@ struct HomeView: View {
             .padding(.bottom, 40)
         }
         .background(Color(nsColor: .textBackgroundColor))
-        .onAppear(perform: reload)
-        // Coming back from a story window should show its updated card.
+        .onAppear {
+            reload()
+            fieldFocused = true
+        }
+        .onChange(of: focusToken) { _, _ in fieldFocused = true }
+        // Returning from a story should show its updated card.
         .onReceive(
             NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
         ) { _ in reload() }
@@ -56,6 +66,7 @@ struct HomeView: View {
                         .stroke(Color.secondary.opacity(0.35), lineWidth: 1)
                 )
                 .frame(maxWidth: 560)
+                .focused($fieldFocused)
                 .onSubmit(start)
 
             Button("Start the story", action: start)
@@ -87,7 +98,7 @@ struct HomeView: View {
 
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(stories) { story in
-                    StoryCardView(story: story, onChanged: reload)
+                    StoryCardView(story: story, onOpen: { onOpen(story.url) }, onChanged: reload)
                 }
             }
             .padding(.horizontal, 32)
@@ -104,8 +115,7 @@ struct HomeView: View {
             let url = try StoryLibrary.create(logline: trimmed)
             logline = ""
             error = nil
-            StoryLibrary.open(url)
-            reload()
+            onOpen(url)
         } catch {
             self.error = "Could not create the story: \(error.localizedDescription)"
         }
@@ -116,7 +126,7 @@ struct HomeView: View {
         panel.allowedContentTypes = [.writerblocksStory, .json]
         panel.allowsMultipleSelection = false
         if panel.runModal() == .OK, let url = panel.url {
-            StoryLibrary.open(url)
+            onOpen(url)
         }
     }
 
@@ -129,13 +139,14 @@ struct HomeView: View {
 /// opening lives behind the ⋯ menu.
 private struct StoryCardView: View {
     let story: StoryCard
+    let onOpen: () -> Void
     let onChanged: () -> Void
 
     @State private var hovering = false
     @State private var confirmingDelete = false
 
     var body: some View {
-        Button(action: { StoryLibrary.open(story.url) }) {
+        Button(action: onOpen) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top) {
                     Text(story.title)

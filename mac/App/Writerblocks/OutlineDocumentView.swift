@@ -5,6 +5,7 @@ import WriterblocksCore
 /// The blocks, assembled.
 struct OutlineDocumentView: View {
     let project: Project
+    let onExport: () -> Void
 
     @State private var copied = false
 
@@ -22,10 +23,8 @@ struct OutlineDocumentView: View {
                 }
                 .disabled(stats.blocks == 0)
 
-                Button("Export Markdown…") {
-                    NotificationCenter.default.post(name: .exportMarkdown, object: nil)
-                }
-                .disabled(stats.blocks == 0)
+                Button("Export Markdown…", action: onExport)
+                    .disabled(stats.blocks == 0)
 
                 Spacer()
             }
