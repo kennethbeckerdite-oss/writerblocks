@@ -2,9 +2,10 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    # The feature branch is here so there is a live URL to test without
-    # merging first. Drop it once this lands on main.
-    branches: [main, claude/writers-block-stackable-blocks-de58nz]
+    # Only main publishes. Pages serves one site, so letting a second branch
+    # deploy means whichever pushed last wins, and a branch push would
+    # silently replace whatever main put there.
+    branches: [main]
   workflow_dispatch:
 
 concurrency:
