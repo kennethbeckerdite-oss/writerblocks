@@ -4,3 +4,10 @@ dist/
 .DS_Store
 .vite/
 e2e/shots/
+
+# Swift / Xcode
+mac/.build/
+mac/App/*.xcodeproj
+mac/App/Writerblocks/Info.plist
+.DS_Store
+xcuserdata/

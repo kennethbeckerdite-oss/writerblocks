@@ -1,0 +1,152 @@
+{
+  "id": "d88cf180-85af-484f-a1d5-fc6882b78626",
+  "title": "The Wreck",
+  "schemaVersion": 1,
+  "strands": [
+    {
+      "id": "36c28525-9bf2-44ad-99df-fd358fd0b0cd",
+      "type": "premise",
+      "label": "Premise",
+      "order": 0,
+      "createdAt": 1785694454656
+    },
+    {
+      "id": "f1b66c37-85ea-456a-993a-bc168a7fd83f",
+      "type": "scene",
+      "label": "Scenes",
+      "order": 1,
+      "createdAt": 1785694454656
+    },
+    {
+      "id": "d4aa2913-674e-4797-a5ca-847c82b9b81e",
+      "type": "character",
+      "label": "Marla",
+      "order": 2,
+      "createdAt": 1785694454669
+    },
+    {
+      "id": "60b8b842-f169-4cb4-bafe-038e349d99f7",
+      "type": "setting",
+      "label": "A harbour town in February",
+      "order": 3,
+      "createdAt": 1785694454669
+    }
+  ],
+  "blocks": [
+    {
+      "id": "b9c20fe6-f94b-4e7a-b8bd-1ff2ff9ed487",
+      "strandId": "36c28525-9bf2-44ad-99df-fd358fd0b0cd",
+      "questionId": "logline",
+      "prompt": "What's the logline?",
+      "answer": "A diver goes back for the wreck that killed her brother.",
+      "beat": null,
+      "order": 0,
+      "createdAt": 1785694454669
+    },
+    {
+      "id": "ffc35eaa-fb74-4038-a083-62b1bc439575",
+      "strandId": "36c28525-9bf2-44ad-99df-fd358fd0b0cd",
+      "questionId": "main-character",
+      "prompt": "Who is the main character?",
+      "answer": "Marla",
+      "beat": null,
+      "order": 1,
+      "createdAt": 1785694454669
+    },
+    {
+      "id": "fae34f49-8402-45ff-993b-a6b307a29b82",
+      "strandId": "36c28525-9bf2-44ad-99df-fd358fd0b0cd",
+      "questionId": "where-set",
+      "prompt": "Where does it take place?",
+      "answer": "A harbour town in February",
+      "beat": null,
+      "order": 2,
+      "createdAt": 1785694454669
+    },
+    {
+      "id": "a1dd173d-c4bf-4cbf-b9e3-a34dda041ebe",
+      "strandId": "60b8b842-f169-4cb4-bafe-038e349d99f7",
+      "questionId": "char-like",
+      "prompt": "What do you like about Marla?",
+      "answer": "She never apologises.",
+      "beat": null,
+      "order": 0,
+      "createdAt": 1785694454670
+    },
+    {
+      "id": "770cecfb-b9d7-4476-b27a-0c3a16bfa1d7",
+      "strandId": "d4aa2913-674e-4797-a5ca-847c82b9b81e",
+      "questionId": "char-vocation",
+      "prompt": "What does Marla do for a living?",
+      "answer": "She dives for salvage.",
+      "beat": null,
+      "order": 0,
+      "createdAt": 1785694454670
+    },
+    {
+      "id": "32409772-76ff-4b18-b7c7-2caad3773cf9",
+      "strandId": "d4aa2913-674e-4797-a5ca-847c82b9b81e",
+      "questionId": "char-afraid",
+      "prompt": "What is Marla afraid of?",
+      "answer": "",
+      "beat": null,
+      "order": 1,
+      "createdAt": 1785694454670
+    },
+    {
+      "id": "9acf3b04-14b6-44de-9cc4-42234d170fa6",
+      "strandId": "60b8b842-f169-4cb4-bafe-038e349d99f7",
+      "questionId": "place-smell",
+      "prompt": "What does A harbour town in February smell like?",
+      "answer": "Diesel and cold rope.",
+      "beat": null,
+      "order": 1,
+      "createdAt": 1785694454670
+    },
+    {
+      "id": "01bfa173-6c3e-42d9-bcaf-80b503e3871f",
+      "strandId": "f1b66c37-85ea-456a-993a-bc168a7fd83f",
+      "questionId": "scene-last",
+      "prompt": "What's the last scene?",
+      "answer": "She lets the boat go.",
+      "beat": 95,
+      "order": 0,
+      "createdAt": 1785694454670
+    },
+    {
+      "id": "5ef452df-9a14-4861-9013-91035a4e0113",
+      "strandId": "f1b66c37-85ea-456a-993a-bc168a7fd83f",
+      "questionId": "scene-first",
+      "prompt": "What's the first scene?",
+      "answer": "She signs the salvage papers.",
+      "beat": 5,
+      "order": 1,
+      "createdAt": 1785694454670
+    },
+    {
+      "id": "f6468f3b-357b-4689-8c54-9bd1423d0ae4",
+      "strandId": "f1b66c37-85ea-456a-993a-bc168a7fd83f",
+      "questionId": "scene-dreading",
+      "prompt": "What scene are you dreading?",
+      "answer": "Telling the mother.",
+      "beat": null,
+      "order": 2,
+      "createdAt": 1785694454670
+    },
+    {
+      "id": "9b5a1069-87a8-40cd-957b-456e8fc10a05",
+      "strandId": "60b8b842-f169-4cb4-bafe-038e349d99f7",
+      "questionId": null,
+      "prompt": "",
+      "answer": "The radio only picks up one station.",
+      "beat": null,
+      "order": 2,
+      "createdAt": 1785694454670
+    }
+  ],
+  "skipped": {
+    "d4aa2913-674e-4797-a5ca-847c82b9b81e::char-dislike": 10
+  },
+  "createdAt": 1785694454656,
+  "updatedAt": 1785694454671
+}
