@@ -42,6 +42,7 @@ final class DeckTests: XCTestCase {
     private func started() throws -> Project {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "Marla")
         return p
     }
@@ -52,10 +53,21 @@ final class DeckTests: XCTestCase {
         XCTAssertEqual(Deck.nextQuestion(Stories.createProject())?.template.id, "logline")
     }
 
-    func testAsksWhoTheMainCharacterIsOnceTheLoglineIsDown() throws {
+    func testAsksForTheNameThenTheMainCharacter() throws {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A diver goes back for the wreck.")
+        XCTAssertEqual(Deck.nextQuestion(p)?.template.id, "story-name")
+
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         XCTAssertEqual(Deck.nextQuestion(p)?.template.id, "main-character")
+    }
+
+    func testAsksWhereItIsSetOnceThereIsAMainCharacter() throws {
+        // The premise strand is thicker than a fresh character strand by this
+        // point, so a priority tie here would hand the question to the character
+        // deck and this one would never be asked. It must win outright.
+        let p = try started()
+        XCTAssertEqual(Deck.nextQuestion(p)?.template.id, "where-set")
     }
 
     func testSubstitutesTheSubjectIntoTheQuestionText() throws {

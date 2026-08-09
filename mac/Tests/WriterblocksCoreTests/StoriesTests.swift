@@ -32,14 +32,36 @@ final class StoriesTests: XCTestCase {
     func testSpawnsAStrandNamedFromTheAnswer() throws {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "Marla.")
 
         XCTAssertEqual(p.strands.first { $0.type == .character }?.label, "Marla")
     }
 
+    func testNamesTheProjectFromTheNamingQuestion() throws {
+        var p = Stories.createProject()
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A diver goes back for the wreck.")
+        XCTAssertEqual(p.title, "Untitled story")
+
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
+        XCTAssertEqual(p.title, "The Wreck")
+    }
+
+    func testLeavesTheTitleAloneWhenTheWriterIsNotSureWhatToCallIt() throws {
+        var p = Stories.createProject(title: "A diver goes back for the wreck.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "   ")
+
+        // Not "Untitled story": a blank answer must not throw away the name the
+        // story already had.
+        XCTAssertEqual(p.title, "A diver goes back for the wreck.")
+        XCTAssertTrue(p.blocks.contains { $0.questionId == "story-name" && $0.answer.isEmpty })
+    }
+
     func testSpawnsNothingWhenTheWriterIsNotSureYet() throws {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         let before = p.strands.count
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "")
 
@@ -63,6 +85,7 @@ final class StoriesTests: XCTestCase {
     func testRecordsTheQuestionWithTheNameAlreadyFilledIn() throws {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "Marla")
         let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
 

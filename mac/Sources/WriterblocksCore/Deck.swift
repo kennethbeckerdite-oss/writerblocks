@@ -142,6 +142,16 @@ public enum Deck {
         )
     }
 
+    /// Deal one particular question, for the callers that already know what they
+    /// want to ask rather than letting the deck choose. Returns nil if the
+    /// question or the strand is gone.
+    public static func deal(_ project: Project, questionId: String, strandId: String) -> DealtQuestion? {
+        guard let template = Questions.question(questionId),
+              let strand = project.strands.first(where: { $0.id == strandId })
+        else { return nil }
+        return DealtQuestion(template: template, strand: strand, text: render(template.text, for: strand))
+    }
+
     /// How many questions are still on the table — for the "you are not empty" counter.
     public static func remainingCount(_ project: Project) -> Int {
         candidates(project).count

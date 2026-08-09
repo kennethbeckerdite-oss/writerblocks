@@ -85,14 +85,20 @@ enum StoryLibrary {
     // MARK: - Creating
 
     /// Answering the logline *is* creating a story: the sentence becomes the
-    /// first block and the deck moves straight on to the main character.
+    /// first block and the deck moves straight on to naming it.
     static func create(logline: String) throws -> URL {
         try ensureFolder()
 
         var project = Stories.createProject()
-        if let dealt = Deck.nextQuestion(project) {
+        // Ask for the logline by name rather than taking whatever the deck deals
+        // first. They are the same question today, but a deck edit must not be
+        // able to quietly file the typed sentence under something else.
+        if let premise = project.strands.first(where: { $0.type == .premise }),
+           let dealt = Deck.deal(project, questionId: "logline", strandId: premise.id) {
             project = Stories.applyAnswer(project, dealt, logline)
         }
+        // A provisional name, so the story has a filename and something on its
+        // card. The next question replaces it with one the writer chose.
         project = Stories.renameProject(project, title: Stories.labelFromAnswer(logline))
 
         let url = try uniqueURL(named: Markdown.slugify(project.title))

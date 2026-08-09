@@ -7,7 +7,7 @@ import XCTest
 final class QuestionsTests: XCTestCase {
 
     func testDeckLoadsFromBundle() {
-        XCTAssertEqual(Questions.all.count, 62)
+        XCTAssertEqual(Questions.all.count, 63)
     }
 
     func testEveryOptionalFieldSurvivedTheJSONRoundTrip() {
@@ -17,7 +17,34 @@ final class QuestionsTests: XCTestCase {
         XCTAssertEqual(Questions.all.filter { $0.unlocks != nil }.count, 5)
         XCTAssertEqual(Questions.all.filter { $0.beat != nil }.count, 13)
         XCTAssertEqual(Questions.all.filter { $0.isRepeatable }.count, 3)
-        XCTAssertEqual(Questions.all.filter { $0.hint != nil }.count, 5)
+        XCTAssertEqual(Questions.all.filter { $0.hint != nil }.count, 6)
+        XCTAssertEqual(Questions.all.filter { $0.titles == true }.count, 1)
+    }
+
+    func testSomethingNamesTheStory() {
+        // Without one of these a story keeps the provisional name cut from its
+        // logline for ever, and there is no other way to rename one.
+        let namers = Questions.all.filter { $0.titles == true }
+        XCTAssertFalse(namers.isEmpty, "no question names the story")
+        for q in namers {
+            XCTAssertEqual(q.strandType, .premise, "\(q.id) names the story but is not on the premise")
+            XCTAssertFalse(q.isRepeatable, "\(q.id) would rename the story over and over")
+            XCTAssertNil(q.spawns, "\(q.id) both names the story and spawns a strand")
+        }
+    }
+
+    func testTheOnlyPlaceholderIsSubject() throws {
+        // A typo like {Subject} is not substituted, and question text is stored
+        // on the block — so it ships verbatim into someone's exported outline
+        // with nothing else in the way to catch it.
+        let placeholder = try NSRegularExpression(pattern: "\\{[^}]*\\}")
+        for q in Questions.all {
+            let range = NSRange(q.text.startIndex..., in: q.text)
+            for match in placeholder.matches(in: q.text, range: range) {
+                let found = String(q.text[Range(match.range, in: q.text)!])
+                XCTAssertEqual(found, "{subject}", "\(q.id) has an unknown placeholder \(found)")
+            }
+        }
     }
 
     func testIdsAreUnique() {

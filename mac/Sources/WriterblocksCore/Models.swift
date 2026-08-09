@@ -121,6 +121,8 @@ public struct QuestionTemplate: Codable, Equatable, Identifiable, Sendable {
     public var priority: Int
     /// Answering this creates a new strand of the given type, named from the answer.
     public var spawns: StrandType?
+    /// Answering this names the project. A blank answer leaves the title alone.
+    public var titles: Bool?
     /// Question ids that only become askable once this one is answered.
     public var unlocks: [String]?
     /// Scene questions only: where this sits in story chronology (0 = open, 100 = close).

@@ -7,6 +7,14 @@
     "priority": 0
   },
   {
+    "id": "story-name",
+    "strandType": "premise",
+    "text": "Okay — what's it called?",
+    "hint": "You can change it whenever. A word will do for now.",
+    "priority": 5,
+    "titles": true
+  },
+  {
     "id": "main-character",
     "strandType": "premise",
     "text": "Who is the main character?",

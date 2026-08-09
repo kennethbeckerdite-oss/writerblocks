@@ -124,6 +124,14 @@ public enum Stories {
             next = addStrand(next, type: spawns, label: labelFromAnswer(trimmed))
         }
 
+        // Naming the story is a question like any other. The blank guard matters
+        // more here than it does above: renameProject turns an empty title into
+        // "Untitled story", so without it "Not sure yet" would rename the story
+        // instead of leaving it as it was.
+        if dealt.template.titles == true, !trimmed.isEmpty {
+            next = renameProject(next, title: labelFromAnswer(trimmed))
+        }
+
         return next
     }
 

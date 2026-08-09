@@ -23,6 +23,9 @@ final class OutlineTests: XCTestCase {
     private func sample() throws -> Project {
         var p = Stories.createProject(title: "The Wreck")
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A diver goes back for the wreck.")
+        // Answering the naming question renames the project, so this has to
+        // agree with the title above or the exported H1 stops matching it.
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "Marla")
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A harbour town")
 
@@ -138,8 +141,8 @@ final class OutlineTests: XCTestCase {
         )
 
         let s = OutlineBuilder.stats(p)
-        XCTAssertEqual(s.blocks, 6)
-        XCTAssertEqual(s.answered, 5)
+        XCTAssertEqual(s.blocks, 7)
+        XCTAssertEqual(s.answered, 6)
         XCTAssertEqual(s.open, 1)
         XCTAssertEqual(s.characters, 1)
         XCTAssertEqual(s.settings, 1)
