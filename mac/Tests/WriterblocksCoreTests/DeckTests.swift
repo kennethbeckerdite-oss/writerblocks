@@ -276,6 +276,75 @@ final class DeckTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(started), 2.0)
     }
 
+    // MARK: - Leaving a question alone while it is being answered
+
+    func testAQuestionSurvivesANewCharacterAppearingUnderIt() throws {
+        // The one that matters. Naming a character from the answer field puts a
+        // fresh strand in front of the deck, and a fresh character wins on
+        // priority against nearly anything — so without this the question would
+        // change under a half-written sentence, and the answer would be filed
+        // under a question the writer never saw.
+        var p = try started()
+        // Walk forward until the question on screen sits further down the deck
+        // than a fresh character's first one, which is where the hazard bites.
+        // Early on the premise still outranks it and nothing would move anyway.
+        while let next = Deck.nextQuestion(p), next.template.priority <= 30 {
+            p = Stories.applyAnswer(p, next, "x")
+        }
+
+        let dealt = try XCTUnwrap(Deck.nextQuestion(p))
+        let after = Stories.addStrand(p, type: .character, label: "Howard")
+
+        XCTAssertNotEqual(
+            Deck.nextQuestion(after)?.template.id, dealt.template.id,
+            "precondition: a fresh character is supposed to outrank the question on screen"
+        )
+        XCTAssertTrue(Deck.isStillDealable(after, dealt))
+    }
+
+    func testAQuestionSurvivesABlockLandingSomewhereElse() throws {
+        var p = try started()
+        let dealt = try XCTUnwrap(Deck.nextQuestion(p))
+        let premise = try strand(p, ofType: .premise)
+        p = Stories.addFreeBlock(p, strandId: premise.id, answer: "a thought")
+
+        XCTAssertTrue(Deck.isStillDealable(p, dealt))
+    }
+
+    func testAQuestionIsStaleOnceItsSubjectIsRenamed() throws {
+        // The question was rendered with the old name in it, so it has to be
+        // dealt again to catch up.
+        let p = try started()
+        let marla = try strand(p, ofType: .character)
+        let dealt = try XCTUnwrap(Deck.nextQuestion(p, focusStrandId: marla.id))
+        XCTAssertTrue(Deck.isStillDealable(p, dealt))
+
+        let renamed = Stories.renameStrand(p, strandId: marla.id, label: "Delia")
+        XCTAssertFalse(Deck.isStillDealable(renamed, dealt))
+    }
+
+    func testAQuestionIsStaleOnceItsSubjectIsGone() throws {
+        let p = try started()
+        let marla = try strand(p, ofType: .character)
+        let dealt = try XCTUnwrap(Deck.nextQuestion(p, focusStrandId: marla.id))
+
+        let deleted = Stories.deleteStrand(p, strandId: marla.id)
+        XCTAssertFalse(Deck.isStillDealable(deleted, dealt))
+    }
+
+    func testAPairQuestionIsStaleOnceTheOtherPersonIsGone() throws {
+        let p = try webbed()
+        let marla = try XCTUnwrap(characters(p).first)
+        let howard = try XCTUnwrap(characters(p).last)
+        let dealt = try XCTUnwrap(
+            Deck.nextQuestion(p, focusStrandId: marla.id, focusAboutStrandId: howard.id)
+        )
+        XCTAssertTrue(Deck.isStillDealable(p, dealt))
+
+        let deleted = Stories.deleteStrand(p, strandId: howard.id)
+        XCTAssertFalse(Deck.isStillDealable(deleted, dealt))
+    }
+
     // MARK: - Questions about two people
 
     /// Marla and Howard, connected, in a story with enough in it for the web to

@@ -130,6 +130,15 @@ enum StoryLibrary {
         NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
+    /// Rename a story that is not open. The file keeps its name: it is never
+    /// shown in the app, and renaming it would break Finder aliases, git
+    /// history and any iCloud Drive path pointing at it.
+    static func rename(_ url: URL, to title: String) throws {
+        let data = try Data(contentsOf: url)
+        let project = Stories.retitle(try StoryFile.decode(data), title: title)
+        try StoryFile.encode(project).write(to: url, options: .atomic)
+    }
+
     static func delete(_ url: URL) throws {
         try FileManager.default.trashItem(at: url, resultingItemURL: nil)
     }

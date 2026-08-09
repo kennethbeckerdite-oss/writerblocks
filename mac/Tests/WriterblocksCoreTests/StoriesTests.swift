@@ -134,6 +134,64 @@ final class StoriesTests: XCTestCase {
         XCTAssertTrue(p.blocks.isEmpty)
     }
 
+    // MARK: - Renaming the story
+
+    private func named(_ title: String) throws -> Project {
+        var p = Stories.createProject()
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), title)
+        return p
+    }
+
+    private func namingAnswer(_ p: Project) -> String? {
+        p.blocks.first { $0.questionId == "story-name" }?.answer
+    }
+
+    func testRenamingAlsoFixesTheAnswerThatNamedIt() throws {
+        // Otherwise the outline reads "Okay — what's it called? The Wreck"
+        // underneath a story titled Deep Water.
+        var p = try named("The Wreck")
+        XCTAssertEqual(p.title, "The Wreck")
+
+        p = Stories.retitle(p, title: "Deep Water")
+        XCTAssertEqual(p.title, "Deep Water")
+        XCTAssertEqual(namingAnswer(p), "Deep Water")
+    }
+
+    func testRenamingLeavesAnAnswerTheWriterHasAlreadyChanged() throws {
+        // They have pulled the two apart on purpose. That sentence is theirs.
+        var p = try named("The Wreck")
+        let block = try XCTUnwrap(p.blocks.first { $0.questionId == "story-name" })
+        p = Stories.editBlock(p, blockId: block.id, answer: "Something else entirely")
+
+        p = Stories.retitle(p, title: "Deep Water")
+        XCTAssertEqual(p.title, "Deep Water")
+        XCTAssertEqual(namingAnswer(p), "Something else entirely")
+    }
+
+    func testRenamingTwiceKeepsBothInStep() throws {
+        var p = try named("The Wreck")
+        p = Stories.retitle(p, title: "Deep Water")
+        p = Stories.retitle(p, title: "Salvage")
+
+        XCTAssertEqual(p.title, "Salvage")
+        XCTAssertEqual(namingAnswer(p), "Salvage")
+    }
+
+    func testWillNotUnnameAStory() throws {
+        // Clearing the field and pressing return is a slip, not a request to
+        // call the story "Untitled story".
+        let p = try named("The Wreck")
+        XCTAssertEqual(Stories.retitle(p, title: "   ").title, "The Wreck")
+        XCTAssertEqual(Stories.retitle(p, title: "").title, "The Wreck")
+    }
+
+    func testRenamingAStoryThatWasNeverAskedItsNameStillWorks() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.retitle(p, title: "Deep Water")
+        XCTAssertEqual(p.title, "Deep Water")
+    }
+
     // MARK: - Linking two characters
 
     func testDrawingALinkOpensAQuestionAboutTheTwoOfThem() throws {

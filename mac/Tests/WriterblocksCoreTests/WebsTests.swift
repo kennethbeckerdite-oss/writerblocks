@@ -74,6 +74,46 @@ final class WebsTests: XCTestCase {
         XCTAssertFalse(matches(named, in: "the yard was empty"))
     }
 
+    // MARK: - The matchable part of a label
+
+    func testGivesBackTheNameToWriteRatherThanTheWholeLabel() {
+        // The menu shows the whole answer the character was named from, but
+        // what goes into the sentence has to be prose, and has to be the part
+        // that will be recognised again.
+        let clipped = Stories.labelFromAnswer("Marla Vance, who runs the yard and owes everyone")
+        XCTAssertEqual(Webs.matchable(for: clipped), "Marla")
+
+        XCTAssertEqual(Webs.matchable(for: "Howard"), "Howard")
+        XCTAssertEqual(Webs.matchable(for: "The diner"), "The diner")
+    }
+
+    func testHasNothingToWriteForALabelThatCannotBeMatched() {
+        // These are the labels the web can never draw a line for, whatever is
+        // typed. Recorded here so the limitation lives in the tests rather than
+        // being discovered by a writer.
+        XCTAssertNil(Webs.matchable(for: "Jo"))
+        XCTAssertNil(Webs.matchable(for: "The Man"))
+        XCTAssertNil(
+            Webs.matchable(
+                for: Stories.labelFromAnswer("A retired dockworker who never left the harbour")
+            )
+        )
+    }
+
+    func testWhatIsWrittenIsWhatIsLookedFor() {
+        // The two halves have to agree: whatever `matchable` hands back to be
+        // typed into a sentence must be found again by the matcher.
+        for label in ["Howard", "The diner", "Marla Vance"] {
+            let written = try? XCTUnwrap(Webs.matchable(for: label))
+            let needle = try? XCTUnwrap(Webs.needle(for: label))
+            guard let written, let needle else { continue }
+            XCTAssertTrue(
+                Webs.mentions(Array("she saw \(written) again".lowercased().utf8), needle),
+                "\(label) is written as \(written) but not found again"
+            )
+        }
+    }
+
     // MARK: - Edges
 
     func testConnectsTwoCharactersWhenOneIsNamedInTheOthersAnswer() throws {

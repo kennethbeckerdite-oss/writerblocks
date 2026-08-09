@@ -226,6 +226,28 @@ public enum Deck {
         )
     }
 
+    /// Whether a question already on screen is still the question it was.
+    ///
+    /// The point of asking is to be able to leave the writer alone. Adding a
+    /// character mid-sentence — which is exactly what naming a new one from the
+    /// answer field does — puts a brand new strand in front of the deck, and a
+    /// fresh character wins on priority against almost anything, so re-dealing
+    /// would swap the question out from under a half-written answer. Worse, the
+    /// question is stored on the block when the answer is submitted and read
+    /// back in the outline for ever, so the sentence would be filed under
+    /// something the writer never saw.
+    ///
+    /// A label change counts as stale on purpose: the question was rendered
+    /// with the old name in it, so it has to be dealt again to catch up.
+    public static func isStillDealable(_ project: Project, _ dealt: DealtQuestion) -> Bool {
+        func unchanged(_ strand: Strand) -> Bool {
+            project.strands.contains { $0.id == strand.id && $0.label == strand.label }
+        }
+        guard unchanged(dealt.strand) else { return false }
+        if let about = dealt.about, !unchanged(about) { return false }
+        return true
+    }
+
     /// Deal one particular question, for the callers that already know what they
     /// want to ask rather than letting the deck choose. Returns nil if the
     /// question or either strand is gone.

@@ -144,6 +144,8 @@ private struct StoryCardView: View {
 
     @State private var hovering = false
     @State private var confirmingDelete = false
+    @State private var renaming = false
+    @State private var draftTitle = ""
 
     var body: some View {
         Button(action: onOpen) {
@@ -200,6 +202,18 @@ private struct StoryCardView: View {
         } message: {
             Text("\(story.stats.blocks) block\(story.stats.blocks == 1 ? "" : "s") will go to the Trash.")
         }
+        // An alert rather than an inline field: the whole card is a button, so
+        // a field sitting inside it would be fighting for the same clicks.
+        .alert("Rename story", isPresented: $renaming) {
+            TextField("Name", text: $draftTitle)
+            Button("Rename") {
+                try? StoryLibrary.rename(story.url, to: draftTitle)
+                onChanged()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The file keeps the name it was created with.")
+        }
     }
 
     private var counts: String {
@@ -216,6 +230,10 @@ private struct StoryCardView: View {
 
     private var menu: some View {
         Menu {
+            Button("Rename…") {
+                draftTitle = story.title
+                renaming = true
+            }
             Button("Duplicate") {
                 _ = try? StoryLibrary.duplicate(story.url)
                 onChanged()

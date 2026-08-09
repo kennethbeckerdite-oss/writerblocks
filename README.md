@@ -2,18 +2,15 @@
 
 Small questions, stacked into blocks, assembled into a first outline.
 
-A **native macOS app** is being built in [`mac/`](mac) — see
-[Building the Mac app](#building-the-mac-app). It is the real destination: a
-story becomes a `.writerblocks` file you own, which Time Machine backs up,
-iCloud Drive syncs, and git can version.
+A **native macOS app**, in [`mac/`](mac) — see
+[Building the Mac app](#building-the-mac-app). A story becomes a
+`.writerblocks` file you own, which Time Machine backs up, iCloud Drive syncs,
+and git can version.
 
-The **web version** was the visual prototype and is still live at
-[kennethbeckerdite-oss.github.io/writerblocks](https://kennethbeckerdite-oss.github.io/writerblocks/).
-It will be removed once the Mac app replaces it.
-
-> **If you have written anything in the web version, export it now.** Its work
-> lives in one browser's local storage and nowhere else. Use **Export .json** —
-> the Mac app reads exactly that format, and there is a test proving it.
+> There was once a web version, built first as a visual prototype. It has been
+> removed now that the Mac app does everything it did. If you have a `.json`
+> file exported from it, the Mac app opens it — that is the same format, and
+> there is a test proving it still reads character for character.
 
 ## The idea
 
@@ -81,24 +78,6 @@ as before. What the app gives up by not using `DocumentGroup` is macOS
 Versions, automatic iCloud conflict resolution, and the standard
 Edited/Revert/Duplicate title-bar menu.
 
-## Running the web prototype
-
-```sh
-npm install
-npm run dev        # http://localhost:5173
-```
-
-```sh
-npm test           # engine + deck unit tests
-npm run build      # typecheck and static production build into dist/
-npm run preview    # serve the production build on :4173
-npm run test:e2e   # drive the previewed build through the whole loop in a browser
-```
-
-`npm run build` produces a plain static site — no server, no accounts, no
-backend. Your work lives in the browser's local storage, and you can export it
-to a file at any time.
-
 ## Using it
 
 **Ask** is where you live. One question, one line, `Enter`. Two escape hatches,
@@ -129,44 +108,58 @@ the ending first still reads correctly. Copy it as Markdown, download it as
 ## Rewriting the questions
 
 The deck is content, not machinery. It lives in one file —
-[`src/data/questions.ts`](src/data/questions.ts) — and it's meant to be edited.
-Each entry is:
+[`mac/Sources/WriterblocksCore/Resources/questions.json`](mac/Sources/WriterblocksCore/Resources/questions.json)
+— and it's meant to be edited. Each entry is:
 
-```ts
+```json
 {
-  id: 'char-vocation',
-  strandType: 'character',
-  text: 'What does {subject} do for a living?',   // {subject} becomes the name
-  hint: 'Optional coaching, shown while answering but never stored',
-  priority: 5,                                     // lower is asked earlier
-  unlocks: ['char-likes-job'],                     // gated until this is answered
-  spawns: 'character',                             // answering opens a new strand
-  beat: 50,                                        // scene questions: story order
-  repeatable: true,                                // can be asked more than once
+  "id": "char-vocation",
+  "strandType": "character",
+  "text": "What does {subject} do for a living?",
+  "hint": "Optional coaching, shown while answering but never stored",
+  "priority": 50,
+  "unlocks": ["char-likes-job"],
+  "spawns": "character",
+  "beat": 50,
+  "repeatable": true,
+  "pairs": true,
+  "titles": true
 }
 ```
+
+`{subject}` becomes the strand's name, and `{other}` the second person in a
+question asked about two characters at once. `priority` orders the asking, lower
+first, in steps of ten so there is room to slot a question in. `unlocks` gates a
+follow-up behind its parent; `spawns` opens a new strand from the answer; `beat`
+places a scene in story order; `pairs` marks a question about two characters;
+`titles` marks the one that names the story.
 
 The rules a good question follows: it's answerable in one sentence, and it's
 concrete. "What is the theme?" produces a block. "What does she do when nobody
 is watching?" produces a sentence.
 
-`npm test` includes a set of integrity checks on the deck — unique ids, unlocks
-that point at real questions, `{subject}` only where a strand has a real name —
-so a bad edit fails there rather than halfway through a writing session.
+`swift test --package-path mac` includes a set of integrity checks on the deck —
+unique ids, unlocks that point at real questions, `{subject}` only where a strand
+has a real name, question text short enough to read back in an outline — so a bad
+edit fails there rather than halfway through a writing session.
 
 ## How it's built
 
-React + TypeScript + Vite, one runtime dependency worth naming (`@dnd-kit` for
-the board). The interesting part is `src/engine/`, which is pure functions with
-no React in them:
+Two pieces. `WriterblocksCore` is a SwiftPM library of pure functions with no UI
+and no file I/O in it:
 
 | | |
 | --- | --- |
-| `deck.ts` | picks the next question — gating, skips, spreading attention across strands |
-| `strands.ts` | every state change: answering, spawning, moving, editing |
-| `outline.ts` | blocks → outline sections |
-| `markdown.ts` | outline → exportable Markdown |
+| `Deck.swift` | picks the next question — gating, skips, spreading attention across subjects |
+| `Strands.swift` | every state change: answering, spawning, moving, editing, linking |
+| `Webs.swift` | which characters are connected, derived from the sentences |
+| `Outline.swift` | blocks → outline sections |
+| `Markdown.swift` | outline → exportable Markdown |
+| `StoryFile.swift` | a deliberately forgiving `.writerblocks` reader |
 
-State changes are `(project, …) => project`, driven through a reducer in
-`src/state/useProject.ts`. Saving is a debounced write in one effect, so the
-reducer stays pure and testable.
+Every state change is `(project, …) -> project`, so the engine is testable
+without a window. The SwiftUI app in `mac/App/` holds the store, the autosave
+and the drawing, and calls into the engine for everything else.
+
+The library is where the tests are — a hundred-odd of them, run on every push
+by `.github/workflows/mac.yml`, which also builds the app.

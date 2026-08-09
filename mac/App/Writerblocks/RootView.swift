@@ -69,6 +69,12 @@ struct RootView: View {
                 StoryView(store: store) {
                     AppRouter.shared.goHome()
                 }
+                // Double-clicking a second story in Finder goes straight from
+                // one story to the next without passing through home, so
+                // without this the editor's state — which tab, which question,
+                // a half-typed sentence — would carry over into someone else's
+                // story.
+                .id(store.url)
                 .transition(.opacity)
             }
         }
