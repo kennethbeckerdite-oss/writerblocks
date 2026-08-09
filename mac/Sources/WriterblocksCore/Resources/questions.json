@@ -160,6 +160,50 @@
     "priority": 150
   },
   {
+    "id": "pair-thinks-of",
+    "strandType": "character",
+    "text": "What does {subject} think of {other}?",
+    "hint": "Unfair is fine. It does not have to be true.",
+    "priority": 160,
+    "pairs": true
+  },
+  {
+    "id": "pair-wants-from",
+    "strandType": "character",
+    "text": "What does {subject} want from {other}?",
+    "priority": 170,
+    "pairs": true
+  },
+  {
+    "id": "pair-cannot-forgive",
+    "strandType": "character",
+    "text": "What can't {subject} forgive {other}?",
+    "hint": "Small is better than large here.",
+    "priority": 180,
+    "pairs": true
+  },
+  {
+    "id": "pair-unsaid",
+    "strandType": "character",
+    "text": "What does {subject} not say to {other}?",
+    "priority": 190,
+    "pairs": true
+  },
+  {
+    "id": "pair-hiding",
+    "strandType": "character",
+    "text": "What is {subject} hiding from {other}?",
+    "priority": 200,
+    "pairs": true
+  },
+  {
+    "id": "pair-met",
+    "strandType": "character",
+    "text": "Where did {subject} and {other} meet?",
+    "priority": 210,
+    "pairs": true
+  },
+  {
     "id": "char-alone",
     "strandType": "character",
     "text": "What does {subject} do when nobody is watching?",

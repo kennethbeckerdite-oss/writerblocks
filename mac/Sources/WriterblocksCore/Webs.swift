@@ -177,8 +177,14 @@ public enum Webs {
             // "Marla Vance" contains "Marla", so a sentence naming the first
             // matches both. Keep the longer name only — the shorter one is an
             // artefact of the longer, not a second person in the sentence.
+            //
+            // Strictly longer: two characters who happen to share a label each
+            // contain the other, and dropping both would leave the sentence
+            // naming nobody.
             let named = hits
-                .filter { hit in !hits.contains { $0.id != hit.id && mentions($0.bytes, hit.bytes) } }
+                .filter { hit in
+                    !hits.contains { $0.bytes.count > hit.bytes.count && mentions($0.bytes, hit.bytes) }
+                }
                 .map(\.id)
             guard !named.isEmpty else { continue }
 

@@ -134,6 +134,54 @@ final class StoriesTests: XCTestCase {
         XCTAssertTrue(p.blocks.isEmpty)
     }
 
+    // MARK: - Linking two characters
+
+    func testDrawingALinkOpensAQuestionAboutTheTwoOfThem() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: howard.id)
+
+        let block = try XCTUnwrap(p.blocks.last)
+        XCTAssertEqual(block.strandId, marla.id)
+        XCTAssertEqual(block.aboutStrandId, howard.id)
+        // An open thread, which is what a line the writer drew actually is.
+        XCTAssertTrue(block.answer.isEmpty)
+        // Both names are already in the prompt, so it reads correctly in the
+        // outline without anything else having to know about the link.
+        XCTAssertTrue(block.prompt.contains("Marla"))
+        XCTAssertTrue(block.prompt.contains("Howard"))
+        XCTAssertFalse(block.prompt.contains("{"))
+    }
+
+    func testDrawingTheSameLinkTwiceChangesNothing() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: howard.id)
+        let after = Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: howard.id)
+        XCTAssertEqual(after.blocks.count, 1)
+
+        // And neither does drawing it back the other way: they are connected.
+        let reversed = Stories.linkCharacters(p, strandId: howard.id, aboutStrandId: marla.id)
+        XCTAssertEqual(reversed.blocks.count, 1)
+    }
+
+    func testRefusesLinksThatAreNotBetweenTwoCharacters() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .setting, label: "The harbour")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let harbour = try XCTUnwrap(p.strands.first { $0.label == "The harbour" })
+
+        XCTAssertTrue(Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: harbour.id).blocks.isEmpty)
+        XCTAssertTrue(Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: marla.id).blocks.isEmpty)
+        XCTAssertTrue(Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: "gone").blocks.isEmpty)
+    }
+
     func testKeepsTheSentenceWhenTheCharacterItWasAboutIsDeleted() throws {
         var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
         p = Stories.addStrand(p, type: .character, label: "Howard")

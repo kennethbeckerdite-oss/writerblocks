@@ -7,7 +7,7 @@ import XCTest
 final class QuestionsTests: XCTestCase {
 
     func testDeckLoadsFromBundle() {
-        XCTAssertEqual(Questions.all.count, 63)
+        XCTAssertEqual(Questions.all.count, 69)
     }
 
     func testEveryOptionalFieldSurvivedTheJSONRoundTrip() {
@@ -17,8 +17,9 @@ final class QuestionsTests: XCTestCase {
         XCTAssertEqual(Questions.all.filter { $0.unlocks != nil }.count, 5)
         XCTAssertEqual(Questions.all.filter { $0.beat != nil }.count, 13)
         XCTAssertEqual(Questions.all.filter { $0.isRepeatable }.count, 3)
-        XCTAssertEqual(Questions.all.filter { $0.hint != nil }.count, 6)
+        XCTAssertEqual(Questions.all.filter { $0.hint != nil }.count, 8)
         XCTAssertEqual(Questions.all.filter { $0.titles == true }.count, 1)
+        XCTAssertEqual(Questions.all.filter(\.isPair).count, 6)
     }
 
     func testSomethingNamesTheStory() {
@@ -33,7 +34,7 @@ final class QuestionsTests: XCTestCase {
         }
     }
 
-    func testTheOnlyPlaceholderIsSubject() throws {
+    func testTheOnlyPlaceholdersAreSubjectAndOther() throws {
         // A typo like {Subject} is not substituted, and question text is stored
         // on the block — so it ships verbatim into someone's exported outline
         // with nothing else in the way to catch it.
@@ -42,8 +43,47 @@ final class QuestionsTests: XCTestCase {
             let range = NSRange(q.text.startIndex..., in: q.text)
             for match in placeholder.matches(in: q.text, range: range) {
                 let found = String(q.text[Range(match.range, in: q.text)!])
-                XCTAssertEqual(found, "{subject}", "\(q.id) has an unknown placeholder \(found)")
+                XCTAssertTrue(
+                    found == "{subject}" || found == "{other}",
+                    "\(q.id) has an unknown placeholder \(found)"
+                )
             }
+        }
+    }
+
+    func testTheSecondPersonIsOnlyNamedByAQuestionAboutTwoPeople() {
+        for q in Questions.all where q.text.contains("{other}") {
+            XCTAssertTrue(q.isPair, "\(q.id) names a second person but is not a pair question")
+        }
+        for q in Questions.all where q.isPair {
+            XCTAssertTrue(q.text.contains("{subject}"), "\(q.id) never names its subject")
+            XCTAssertTrue(q.text.contains("{other}"), "\(q.id) never names the other person")
+        }
+    }
+
+    func testPairQuestionsStayWithinWhatTheDeckCanDealThem() {
+        for q in Questions.all where q.isPair {
+            // Pairs are found among characters; there is nothing to pair a
+            // premise or a scene with.
+            XCTAssertEqual(q.strandType, .character, "\(q.id) pairs but is not a character question")
+            // The deck offers every pair template for every connected pair, so
+            // a repeatable one would never run dry and the focus picker would
+            // never fall back.
+            XCTAssertFalse(q.isRepeatable, "\(q.id) would never be exhausted")
+            XCTAssertNil(q.spawns, "\(q.id) would spawn a strand from an answer about two people")
+            XCTAssertNil(q.beat, "\(q.id) is not a scene")
+            // Gating keys on one strand and one question. Keeping pairs out of
+            // it means there is no second gating path to get wrong.
+            XCTAssertNil(q.unlocks, "\(q.id) gates a follow-up")
+            XCTAssertFalse(Questions.gatedIds.contains(q.id), "\(q.id) is gated behind another question")
+        }
+    }
+
+    func testPairQuestionsAreShortEnoughToCarryTwoNames() {
+        // A rendered pair question can carry two 40-character labels, which
+        // makes it the longest line the outline will ever print.
+        for q in Questions.all where q.isPair {
+            XCTAssertLessThan(q.text.count, 40, "\(q.id) is too long once two names are in it")
         }
     }
 

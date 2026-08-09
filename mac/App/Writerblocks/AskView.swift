@@ -20,7 +20,7 @@ struct AskView: View {
     /// same question asked about the next character is a new question, and the
     /// field should take focus again.
     private var questionIdentity: String? {
-        dealt.map { "\($0.strand.id)::\($0.template.id)" }
+        dealt.map { "\($0.strand.id)::\($0.template.id)::\($0.about?.id ?? "")" }
     }
 
     var body: some View {
@@ -67,7 +67,10 @@ struct AskView: View {
 
                     Button("Skip for now") {
                         project = Stories.skipQuestion(
-                            project, strandId: dealt.strand.id, questionId: dealt.template.id
+                            project,
+                            strandId: dealt.strand.id,
+                            questionId: dealt.template.id,
+                            aboutStrandId: dealt.about?.id
                         )
                         draft = ""
                         refreshQuestion()

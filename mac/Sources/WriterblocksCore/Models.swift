@@ -138,21 +138,30 @@ public struct QuestionTemplate: Codable, Equatable, Identifiable, Sendable {
     public var beat: Int?
     /// Can be asked more than once for the same strand.
     public var repeatable: Bool?
+    /// Asked about two characters at once. The text carries {other} as well as
+    /// {subject}, and it is only ever asked about a pair the story has
+    /// connected.
+    public var pairs: Bool?
 
     public var isRepeatable: Bool { repeatable ?? false }
+    public var isPair: Bool { pairs ?? false }
 }
 
 /// What the deck hands back when it has something to ask.
 public struct DealtQuestion: Equatable, Sendable {
     public let template: QuestionTemplate
     public let strand: Strand
-    /// `template.text` with {subject} resolved.
+    /// `template.text` with {subject} — and {other}, for a pair question —
+    /// resolved.
     public let text: String
+    /// The second character, for a question asked about two people at once.
+    public let about: Strand?
 
-    public init(template: QuestionTemplate, strand: Strand, text: String) {
+    public init(template: QuestionTemplate, strand: Strand, text: String, about: Strand? = nil) {
         self.template = template
         self.strand = strand
         self.text = text
+        self.about = about
     }
 }
 
