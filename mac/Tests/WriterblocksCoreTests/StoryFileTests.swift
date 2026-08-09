@@ -151,6 +151,80 @@ final class StoryFileTests: XCTestCase {
         XCTAssertNil(restored.blocks[1].aboutStrandId)
     }
 
+    func testReadsAPlaceThatSitsInsideAnother() throws {
+        var raw = try fixtureObject()
+        var strands = try XCTUnwrap(raw["strands"] as? [Any])
+        let setting = try XCTUnwrap(
+            strands.compactMap { $0 as? [String: Any] }.first { $0["type"] as? String == "setting" }
+        )
+        let settingId = try XCTUnwrap(setting["id"] as? String)
+
+        strands.append([
+            "id": "store", "type": "setting", "label": "The 7-11",
+            "order": 9, "parentStrandId": settingId
+        ])
+        raw["strands"] = strands
+
+        let restored = try XCTUnwrap(StoryFile.parse(raw))
+        XCTAssertEqual(restored.strands.first { $0.id == "store" }?.parentStrandId, settingId)
+    }
+
+    func testDropsAParentLinkTheFileShouldNotHaveHadAndKeepsTheStrand() throws {
+        var raw = try fixtureObject()
+        var strands = try XCTUnwrap(raw["strands"] as? [Any])
+        let character = try XCTUnwrap(
+            strands.compactMap { $0 as? [String: Any] }.first { $0["type"] as? String == "character" }
+        )
+        let characterId = try XCTUnwrap(character["id"] as? String)
+
+        strands.append(["id": "a", "type": "setting", "label": "A", "order": 9,
+                        "parentStrandId": "not in this file"])
+        strands.append(["id": "b", "type": "setting", "label": "B", "order": 10,
+                        "parentStrandId": characterId])
+        strands.append(["id": "c", "type": "setting", "label": "C", "order": 11,
+                        "parentStrandId": "c"])
+        raw["strands"] = strands
+
+        // Each one keeps its place in the story and loses only the bad link.
+        let restored = try XCTUnwrap(StoryFile.parse(raw))
+        for id in ["a", "b", "c"] {
+            let strand = try XCTUnwrap(restored.strands.first { $0.id == id }, "\(id) was dropped")
+            XCTAssertNil(strand.parentStrandId, "\(id) kept a parent it should not have")
+        }
+    }
+
+    func testARingOfPlacesInsideEachOtherIsBrokenRatherThanFollowed() throws {
+        // A resolver that walked the chain would either spin for ever here or
+        // decide both were fine. Neither may happen.
+        var raw = try fixtureObject()
+        var strands = try XCTUnwrap(raw["strands"] as? [Any])
+        strands.append(["id": "x", "type": "setting", "label": "X", "order": 9, "parentStrandId": "y"])
+        strands.append(["id": "y", "type": "setting", "label": "Y", "order": 10, "parentStrandId": "x"])
+        raw["strands"] = strands
+
+        let restored = try XCTUnwrap(StoryFile.parse(raw))
+        XCTAssertNil(try XCTUnwrap(restored.strands.first { $0.id == "x" }).parentStrandId)
+        XCTAssertNil(try XCTUnwrap(restored.strands.first { $0.id == "y" }).parentStrandId)
+    }
+
+    func testPlacesNestNoMoreThanTwoDeep() throws {
+        var raw = try fixtureObject()
+        var strands = try XCTUnwrap(raw["strands"] as? [Any])
+        strands.append(["id": "top", "type": "setting", "label": "Oregon", "order": 9])
+        strands.append(["id": "mid", "type": "setting", "label": "The motel",
+                        "order": 10, "parentStrandId": "top"])
+        strands.append(["id": "deep", "type": "setting", "label": "The bathroom",
+                        "order": 11, "parentStrandId": "mid"])
+        raw["strands"] = strands
+
+        let restored = try XCTUnwrap(StoryFile.parse(raw))
+        XCTAssertEqual(restored.strands.first { $0.id == "mid" }?.parentStrandId, "top")
+        XCTAssertNil(
+            try XCTUnwrap(restored.strands.first { $0.id == "deep" }).parentStrandId,
+            "a third level must flatten rather than nest"
+        )
+    }
+
     func testIgnoresUnknownFieldsFromANewerBuild() throws {
         var raw = try fixtureObject()
         raw["somethingFromTheFuture"] = ["nested": true]

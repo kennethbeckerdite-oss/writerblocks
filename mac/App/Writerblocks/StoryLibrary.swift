@@ -169,6 +169,14 @@ enum StoryLibrary {
             return s
         }
 
+        // A second pass, because the map above is what builds the id table and
+        // a location's setting may be any strand in it. Without this a copied
+        // story's locations point back into the original — nothing would fail,
+        // they would simply stop being inside anything.
+        for i in copy.strands.indices {
+            copy.strands[i].parentStrandId = copy.strands[i].parentStrandId.flatMap { strandIds[$0] }
+        }
+
         var blockIds: [String: String] = [:]
         copy.blocks = project.blocks.compactMap { block in
             guard let newStrandId = strandIds[block.strandId] else { return nil }

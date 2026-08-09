@@ -28,13 +28,28 @@ public struct Strand: Codable, Equatable, Identifiable, Sendable {
     public var label: String
     public var order: Int
     public var createdAt: Double
+    /// The setting this one sits inside — the 7-11 in Oregon, the kitchen in
+    /// the house. nil for everything else, including a setting itself.
+    ///
+    /// Only ever set on a `.setting` strand, and only ever pointing at a
+    /// `.setting` with no parent of its own: places nest exactly two deep. See
+    /// `Stories.parentIsUsable`.
+    public var parentStrandId: String?
 
-    public init(id: String, type: StrandType, label: String, order: Int, createdAt: Double) {
+    public init(
+        id: String,
+        type: StrandType,
+        label: String,
+        order: Int,
+        createdAt: Double,
+        parentStrandId: String? = nil
+    ) {
         self.id = id
         self.type = type
         self.label = label
         self.order = order
         self.createdAt = createdAt
+        self.parentStrandId = parentStrandId
     }
 }
 
