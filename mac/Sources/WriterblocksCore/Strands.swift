@@ -92,6 +92,12 @@ public enum Stories {
         touched(project) { p in
             p.strands.removeAll { $0.id == strandId }
             p.blocks.removeAll { $0.strandId == strandId }
+            // Blocks elsewhere that were about this one keep their sentence and
+            // lose the link. "What does Marla think of Howard?" is still worth
+            // reading once Howard is gone; a pointer to nothing is not.
+            for i in p.blocks.indices where p.blocks[i].aboutStrandId == strandId {
+                p.blocks[i].aboutStrandId = nil
+            }
         }
     }
 
@@ -109,13 +115,16 @@ public enum Stories {
             answer: trimmed,
             beat: dealt.template.beat,
             order: nextOrder(project, dealt.strand.id),
-            createdAt: now()
+            createdAt: now(),
+            aboutStrandId: dealt.about?.id
         )
 
         var next = touched(project) { p in
             p.blocks.append(block)
             // Answering clears any earlier skip of this question for this strand.
-            p.skipped.removeValue(forKey: Deck.skipKey(dealt.strand.id, dealt.template.id))
+            p.skipped.removeValue(
+                forKey: Deck.skipKey(dealt.strand.id, dealt.template.id, about: dealt.about?.id)
+            )
         }
 
         // "Who is the main character?" doesn't just record a block, it opens a
@@ -124,14 +133,64 @@ public enum Stories {
             next = addStrand(next, type: spawns, label: labelFromAnswer(trimmed))
         }
 
+        // Naming the story is a question like any other. The blank guard matters
+        // more here than it does above: renameProject turns an empty title into
+        // "Untitled story", so without it "Not sure yet" would rename the story
+        // instead of leaving it as it was.
+        if dealt.template.titles == true, !trimmed.isEmpty {
+            next = renameProject(next, title: labelFromAnswer(trimmed))
+        }
+
         return next
     }
 
     /// Steps a question aside, remembering how far along the writer was at the time.
-    public static func skipQuestion(_ project: Project, strandId: String, questionId: String) -> Project {
-        let key = Deck.skipKey(strandId, questionId)
+    public static func skipQuestion(
+        _ project: Project,
+        strandId: String,
+        questionId: String,
+        aboutStrandId: String? = nil
+    ) -> Project {
+        let key = Deck.skipKey(strandId, questionId, about: aboutStrandId)
         guard project.skipped[key] == nil else { return project }
         return touched(project) { $0.skipped[key] = project.blocks.count }
+    }
+
+    /// Connect two characters by hand, by opening the first question about the
+    /// two of them.
+    ///
+    /// The block starts unanswered, which is exactly what a line the writer
+    /// drew is: an open thread. It also means drawing a line hands back a
+    /// sentence to write rather than a decoration, and the block reads properly
+    /// in the outline because both names are already in the prompt.
+    ///
+    /// Drawing the same line twice does nothing — the pair is already connected
+    /// and the deck will keep asking about it on its own.
+    public static func linkCharacters(
+        _ project: Project,
+        strandId: String,
+        aboutStrandId: String
+    ) -> Project {
+        guard strandId != aboutStrandId,
+              project.strands.contains(where: { $0.id == strandId && $0.type == .character }),
+              project.strands.contains(where: { $0.id == aboutStrandId && $0.type == .character })
+        else { return project }
+
+        let alreadyLinked = project.blocks.contains { block in
+            (block.strandId == strandId && block.aboutStrandId == aboutStrandId)
+                || (block.strandId == aboutStrandId && block.aboutStrandId == strandId)
+        }
+        guard !alreadyLinked else { return project }
+
+        guard let template = Questions.all
+            .filter(\.isPair)
+            .min(by: { $0.priority != $1.priority ? $0.priority < $1.priority : $0.id < $1.id }),
+            let dealt = Deck.deal(
+                project, questionId: template.id, strandId: strandId, aboutStrandId: aboutStrandId
+            )
+        else { return project }
+
+        return applyAnswer(project, dealt, "")
     }
 
     /// A block the writer wrote unprompted.
@@ -179,6 +238,11 @@ public enum Stories {
         let clamped = max(0, min(toIndex, target.count))
         var relocated = moving
         relocated.strandId = toStrandId
+        // Dragged to another column, a block about two people is no longer about
+        // the pair it was — dropped onto Howard it would claim to be Howard
+        // asking about Howard. The prompt already reads as written; only the
+        // link has to go.
+        if fromStrandId != toStrandId { relocated.aboutStrandId = nil }
 
         var merged = target
         merged.insert(relocated, at: clamped)

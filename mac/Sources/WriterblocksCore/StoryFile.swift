@@ -80,6 +80,12 @@ public enum StoryFile {
             return nil
         }
 
+        // Unlike strandId, a dangling one of these does not cost us the block.
+        // The names are already written into the prompt, so the sentence reads
+        // correctly with or without the link.
+        var aboutStrandId = nonEmpty(dict["aboutStrandId"])
+        if let about = aboutStrandId, !strandIds.contains(about) { aboutStrandId = nil }
+
         return Block(
             id: id,
             strandId: strandId,
@@ -88,7 +94,8 @@ public enum StoryFile {
             answer: string(dict["answer"], ""),
             beat: optionalInt(dict["beat"]),
             order: int(dict["order"], index),
-            createdAt: double(dict["createdAt"], Date().timeIntervalSince1970 * 1000)
+            createdAt: double(dict["createdAt"], Date().timeIntervalSince1970 * 1000),
+            aboutStrandId: aboutStrandId
         )
     }
 

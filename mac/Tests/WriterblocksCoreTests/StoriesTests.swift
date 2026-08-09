@@ -32,14 +32,36 @@ final class StoriesTests: XCTestCase {
     func testSpawnsAStrandNamedFromTheAnswer() throws {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "Marla.")
 
         XCTAssertEqual(p.strands.first { $0.type == .character }?.label, "Marla")
     }
 
+    func testNamesTheProjectFromTheNamingQuestion() throws {
+        var p = Stories.createProject()
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A diver goes back for the wreck.")
+        XCTAssertEqual(p.title, "Untitled story")
+
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
+        XCTAssertEqual(p.title, "The Wreck")
+    }
+
+    func testLeavesTheTitleAloneWhenTheWriterIsNotSureWhatToCallIt() throws {
+        var p = Stories.createProject(title: "A diver goes back for the wreck.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "   ")
+
+        // Not "Untitled story": a blank answer must not throw away the name the
+        // story already had.
+        XCTAssertEqual(p.title, "A diver goes back for the wreck.")
+        XCTAssertTrue(p.blocks.contains { $0.questionId == "story-name" && $0.answer.isEmpty })
+    }
+
     func testSpawnsNothingWhenTheWriterIsNotSureYet() throws {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         let before = p.strands.count
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "")
 
@@ -63,6 +85,7 @@ final class StoriesTests: XCTestCase {
     func testRecordsTheQuestionWithTheNameAlreadyFilledIn() throws {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "Marla")
         let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
 
@@ -109,6 +132,106 @@ final class StoriesTests: XCTestCase {
         p = Stories.deleteStrand(p, strandId: strand.id)
         XCTAssertFalse(p.strands.contains { $0.id == strand.id })
         XCTAssertTrue(p.blocks.isEmpty)
+    }
+
+    // MARK: - Linking two characters
+
+    func testDrawingALinkOpensAQuestionAboutTheTwoOfThem() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: howard.id)
+
+        let block = try XCTUnwrap(p.blocks.last)
+        XCTAssertEqual(block.strandId, marla.id)
+        XCTAssertEqual(block.aboutStrandId, howard.id)
+        // An open thread, which is what a line the writer drew actually is.
+        XCTAssertTrue(block.answer.isEmpty)
+        // Both names are already in the prompt, so it reads correctly in the
+        // outline without anything else having to know about the link.
+        XCTAssertTrue(block.prompt.contains("Marla"))
+        XCTAssertTrue(block.prompt.contains("Howard"))
+        XCTAssertFalse(block.prompt.contains("{"))
+    }
+
+    func testDrawingTheSameLinkTwiceChangesNothing() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: howard.id)
+        let after = Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: howard.id)
+        XCTAssertEqual(after.blocks.count, 1)
+
+        // And neither does drawing it back the other way: they are connected.
+        let reversed = Stories.linkCharacters(p, strandId: howard.id, aboutStrandId: marla.id)
+        XCTAssertEqual(reversed.blocks.count, 1)
+    }
+
+    func testRefusesLinksThatAreNotBetweenTwoCharacters() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .setting, label: "The harbour")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let harbour = try XCTUnwrap(p.strands.first { $0.label == "The harbour" })
+
+        XCTAssertTrue(Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: harbour.id).blocks.isEmpty)
+        XCTAssertTrue(Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: marla.id).blocks.isEmpty)
+        XCTAssertTrue(Stories.linkCharacters(p, strandId: marla.id, aboutStrandId: "gone").blocks.isEmpty)
+    }
+
+    func testKeepsTheSentenceWhenTheCharacterItWasAboutIsDeleted() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "She still owes him.")
+        let blockId = try XCTUnwrap(p.blocks.first).id
+        p.blocks[0].aboutStrandId = howard.id
+
+        p = Stories.deleteStrand(p, strandId: howard.id)
+
+        let block = try XCTUnwrap(p.blocks.first { $0.id == blockId })
+        XCTAssertEqual(block.answer, "She still owes him.")
+        XCTAssertNil(block.aboutStrandId, "a link to a deleted strand must not survive")
+    }
+
+    func testDroppingAPairBlockInAnotherColumnBreaksItsLink() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "She still owes him.")
+        let blockId = try XCTUnwrap(p.blocks.first).id
+        p.blocks[0].aboutStrandId = howard.id
+
+        // Dropped onto Howard, the block would otherwise claim to be about
+        // Howard from Howard's own side.
+        p = Stories.moveBlock(p, blockId: blockId, toStrandId: howard.id, toIndex: 0)
+
+        let block = try XCTUnwrap(p.blocks.first { $0.id == blockId })
+        XCTAssertEqual(block.strandId, howard.id)
+        XCTAssertNil(block.aboutStrandId)
+    }
+
+    func testKeepsTheLinkWhenAPairBlockIsJustReorderedInItsOwnColumn() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "one")
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "two")
+        let blockId = try XCTUnwrap(p.blocks.first).id
+        p.blocks[0].aboutStrandId = howard.id
+
+        p = Stories.moveBlock(p, blockId: blockId, toStrandId: marla.id, toIndex: 1)
+
+        XCTAssertEqual(p.blocks.first { $0.id == blockId }?.aboutStrandId, howard.id)
     }
 
     func testEditsAndDeletesABlock() throws {

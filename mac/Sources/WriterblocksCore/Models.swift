@@ -52,6 +52,13 @@ public struct Block: Codable, Equatable, Identifiable, Sendable {
     /// Position within the strand.
     public var order: Int
     public var createdAt: Double
+    /// The other character this block is about, for a question asked about two
+    /// people at once. nil for every ordinary block.
+    ///
+    /// The block still lives on one strand and still takes its outline section
+    /// from that strand; this only records who else it concerns. The names are
+    /// already substituted into `prompt`, so nothing downstream has to read it.
+    public var aboutStrandId: String?
 
     public init(
         id: String,
@@ -61,7 +68,8 @@ public struct Block: Codable, Equatable, Identifiable, Sendable {
         answer: String,
         beat: Int?,
         order: Int,
-        createdAt: Double
+        createdAt: Double,
+        aboutStrandId: String? = nil
     ) {
         self.id = id
         self.strandId = strandId
@@ -71,6 +79,7 @@ public struct Block: Codable, Equatable, Identifiable, Sendable {
         self.beat = beat
         self.order = order
         self.createdAt = createdAt
+        self.aboutStrandId = aboutStrandId
     }
 }
 
@@ -121,27 +130,38 @@ public struct QuestionTemplate: Codable, Equatable, Identifiable, Sendable {
     public var priority: Int
     /// Answering this creates a new strand of the given type, named from the answer.
     public var spawns: StrandType?
+    /// Answering this names the project. A blank answer leaves the title alone.
+    public var titles: Bool?
     /// Question ids that only become askable once this one is answered.
     public var unlocks: [String]?
     /// Scene questions only: where this sits in story chronology (0 = open, 100 = close).
     public var beat: Int?
     /// Can be asked more than once for the same strand.
     public var repeatable: Bool?
+    /// Asked about two characters at once. The text carries {other} as well as
+    /// {subject}, and it is only ever asked about a pair the story has
+    /// connected.
+    public var pairs: Bool?
 
     public var isRepeatable: Bool { repeatable ?? false }
+    public var isPair: Bool { pairs ?? false }
 }
 
 /// What the deck hands back when it has something to ask.
 public struct DealtQuestion: Equatable, Sendable {
     public let template: QuestionTemplate
     public let strand: Strand
-    /// `template.text` with {subject} resolved.
+    /// `template.text` with {subject} — and {other}, for a pair question —
+    /// resolved.
     public let text: String
+    /// The second character, for a question asked about two people at once.
+    public let about: Strand?
 
-    public init(template: QuestionTemplate, strand: Strand, text: String) {
+    public init(template: QuestionTemplate, strand: Strand, text: String, about: Strand? = nil) {
         self.template = template
         self.strand = strand
         self.text = text
+        self.about = about
     }
 }
 

@@ -7,11 +7,19 @@
     "priority": 0
   },
   {
+    "id": "story-name",
+    "strandType": "premise",
+    "text": "Okay — what's it called?",
+    "hint": "You can change it whenever. A word will do for now.",
+    "priority": 5,
+    "titles": true
+  },
+  {
     "id": "main-character",
     "strandType": "premise",
     "text": "Who is the main character?",
     "hint": "A name is enough. If you have no name, describe them in three words.",
-    "priority": 1,
+    "priority": 10,
     "spawns": "character"
   },
   {
@@ -19,38 +27,38 @@
     "strandType": "premise",
     "text": "Where does it take place?",
     "hint": "A town, a building, a single room — whatever you can picture.",
-    "priority": 2,
+    "priority": 20,
     "spawns": "setting"
   },
   {
     "id": "really-about",
     "strandType": "premise",
     "text": "Forget the plot for a second — what's this really about?",
-    "priority": 20
+    "priority": 200
   },
   {
     "id": "whats-different",
     "strandType": "premise",
     "text": "What's different at the end than it was at the start?",
-    "priority": 21
+    "priority": 210
   },
   {
     "id": "why-you",
     "strandType": "premise",
     "text": "Why are you the one telling this story?",
-    "priority": 40
+    "priority": 400
   },
   {
     "id": "reader-feeling",
     "strandType": "premise",
     "text": "What should someone feel when they put it down?",
-    "priority": 41
+    "priority": 410
   },
   {
     "id": "another-character",
     "strandType": "premise",
     "text": "Who else is in this story?",
-    "priority": 30,
+    "priority": 300,
     "spawns": "character",
     "repeatable": true
   },
@@ -58,7 +66,7 @@
     "id": "another-place",
     "strandType": "premise",
     "text": "Where else does it go?",
-    "priority": 45,
+    "priority": 450,
     "spawns": "setting",
     "repeatable": true
   },
@@ -66,19 +74,19 @@
     "id": "char-like",
     "strandType": "character",
     "text": "What do you like about {subject}?",
-    "priority": 3
+    "priority": 30
   },
   {
     "id": "char-dislike",
     "strandType": "character",
     "text": "What don't you like about {subject}?",
-    "priority": 4
+    "priority": 40
   },
   {
     "id": "char-vocation",
     "strandType": "character",
     "text": "What does {subject} do for a living?",
-    "priority": 5,
+    "priority": 50,
     "unlocks": [
       "char-likes-job",
       "char-good-at-job"
@@ -88,7 +96,7 @@
     "id": "char-likes-job",
     "strandType": "character",
     "text": "Does {subject} like that job?",
-    "priority": 6,
+    "priority": 60,
     "unlocks": [
       "char-rather-be-doing"
     ]
@@ -97,19 +105,19 @@
     "id": "char-rather-be-doing",
     "strandType": "character",
     "text": "What would {subject} rather be doing?",
-    "priority": 7
+    "priority": 70
   },
   {
     "id": "char-good-at-job",
     "strandType": "character",
     "text": "Is {subject} any good at it?",
-    "priority": 8
+    "priority": 80
   },
   {
     "id": "char-wants",
     "strandType": "character",
     "text": "What does {subject} want?",
-    "priority": 9,
+    "priority": 90,
     "unlocks": [
       "char-in-the-way"
     ]
@@ -118,50 +126,94 @@
     "id": "char-in-the-way",
     "strandType": "character",
     "text": "What's standing in the way of that?",
-    "priority": 10
+    "priority": 100
   },
   {
     "id": "char-needs",
     "strandType": "character",
     "text": "What does {subject} actually need?",
     "hint": "Which is usually not the same as what they want.",
-    "priority": 11
+    "priority": 110
   },
   {
     "id": "char-afraid",
     "strandType": "character",
     "text": "What is {subject} afraid of?",
-    "priority": 12
+    "priority": 120
   },
   {
     "id": "char-lie",
     "strandType": "character",
     "text": "What does {subject} believe that simply is not true?",
-    "priority": 13
+    "priority": 130
   },
   {
     "id": "char-loves",
     "strandType": "character",
     "text": "Who does {subject} love?",
-    "priority": 14
+    "priority": 140
   },
   {
     "id": "char-resents",
     "strandType": "character",
     "text": "Who does {subject} resent?",
-    "priority": 15
+    "priority": 150
+  },
+  {
+    "id": "pair-thinks-of",
+    "strandType": "character",
+    "text": "What does {subject} think of {other}?",
+    "hint": "Unfair is fine. It does not have to be true.",
+    "priority": 160,
+    "pairs": true
+  },
+  {
+    "id": "pair-wants-from",
+    "strandType": "character",
+    "text": "What does {subject} want from {other}?",
+    "priority": 170,
+    "pairs": true
+  },
+  {
+    "id": "pair-cannot-forgive",
+    "strandType": "character",
+    "text": "What can't {subject} forgive {other}?",
+    "hint": "Small is better than large here.",
+    "priority": 180,
+    "pairs": true
+  },
+  {
+    "id": "pair-unsaid",
+    "strandType": "character",
+    "text": "What does {subject} not say to {other}?",
+    "priority": 190,
+    "pairs": true
+  },
+  {
+    "id": "pair-hiding",
+    "strandType": "character",
+    "text": "What is {subject} hiding from {other}?",
+    "priority": 200,
+    "pairs": true
+  },
+  {
+    "id": "pair-met",
+    "strandType": "character",
+    "text": "Where did {subject} and {other} meet?",
+    "priority": 210,
+    "pairs": true
   },
   {
     "id": "char-alone",
     "strandType": "character",
     "text": "What does {subject} do when nobody is watching?",
-    "priority": 22
+    "priority": 220
   },
   {
     "id": "char-never",
     "strandType": "character",
     "text": "What would {subject} never do?",
-    "priority": 23,
+    "priority": 230,
     "unlocks": [
       "char-never-when"
     ]
@@ -170,67 +222,67 @@
     "id": "char-never-when",
     "strandType": "character",
     "text": "What would make {subject} do it anyway?",
-    "priority": 24
+    "priority": 240
   },
   {
     "id": "char-first-notice",
     "strandType": "character",
     "text": "What do you notice first about {subject} in a room?",
-    "priority": 25
+    "priority": 250
   },
   {
     "id": "char-bad-at",
     "strandType": "character",
     "text": "What is {subject} embarrassingly bad at?",
-    "priority": 26
+    "priority": 260
   },
   {
     "id": "char-worst-thing",
     "strandType": "character",
     "text": "What's the worst thing {subject} has ever done?",
-    "priority": 27
+    "priority": 270
   },
   {
     "id": "char-lies-about",
     "strandType": "character",
     "text": "What does {subject} lie about?",
-    "priority": 28
+    "priority": 280
   },
   {
     "id": "char-money",
     "strandType": "character",
     "text": "Is {subject} short of money, and does it show?",
-    "priority": 42
+    "priority": 420
   },
   {
     "id": "char-carries",
     "strandType": "character",
     "text": "What does {subject} carry around that they do not need?",
-    "priority": 43
+    "priority": 430
   },
   {
     "id": "char-say-out-loud",
     "strandType": "character",
     "text": "What is one thing {subject} says out loud, in their own words?",
-    "priority": 44
+    "priority": 440
   },
   {
     "id": "char-ten-years",
     "strandType": "character",
     "text": "Where is {subject} ten years after the story ends?",
-    "priority": 46
+    "priority": 460
   },
   {
     "id": "place-like",
     "strandType": "setting",
     "text": "Does the main character like {subject}?",
-    "priority": 16
+    "priority": 160
   },
   {
     "id": "place-born-here",
     "strandType": "setting",
     "text": "Were they born in {subject}?",
-    "priority": 17,
+    "priority": 170,
     "unlocks": [
       "place-what-brought-them",
       "place-what-keeps-them"
@@ -240,102 +292,102 @@
     "id": "place-what-brought-them",
     "strandType": "setting",
     "text": "What brought them to {subject}?",
-    "priority": 18
+    "priority": 180
   },
   {
     "id": "place-what-keeps-them",
     "strandType": "setting",
     "text": "What keeps them in {subject}?",
-    "priority": 19
+    "priority": 190
   },
   {
     "id": "place-smell",
     "strandType": "setting",
     "text": "What does {subject} smell like?",
-    "priority": 29
+    "priority": 290
   },
   {
     "id": "place-sound",
     "strandType": "setting",
     "text": "What do you hear in {subject} that you would not hear anywhere else?",
-    "priority": 31
+    "priority": 310
   },
   {
     "id": "place-in-charge",
     "strandType": "setting",
     "text": "Who is in charge in {subject}?",
-    "priority": 32
+    "priority": 320
   },
   {
     "id": "place-one-rule",
     "strandType": "setting",
     "text": "What's the one rule in {subject} that everybody knows?",
-    "priority": 33
+    "priority": 330
   },
   {
     "id": "place-before",
     "strandType": "setting",
     "text": "What happened in {subject} before the story starts?",
-    "priority": 34
+    "priority": 340
   },
   {
     "id": "place-outside",
     "strandType": "setting",
     "text": "What's just outside {subject} that nobody goes to?",
-    "priority": 47
+    "priority": 470
   },
   {
     "id": "place-weather",
     "strandType": "setting",
     "text": "What is the weather doing in {subject}, most days?",
-    "priority": 48
+    "priority": 480
   },
   {
     "id": "place-leave",
     "strandType": "setting",
     "text": "What would make someone leave {subject} for good?",
-    "priority": 49
+    "priority": 490
   },
   {
     "id": "scene-first-image",
     "strandType": "scene",
     "text": "What's the very first image?",
-    "priority": 35,
+    "priority": 350,
     "beat": 0
   },
   {
     "id": "scene-first",
     "strandType": "scene",
     "text": "What's the first scene?",
-    "priority": 33,
+    "priority": 330,
     "beat": 5
   },
   {
     "id": "scene-normal-life",
     "strandType": "scene",
     "text": "What does an ordinary day look like, just before everything changes?",
-    "priority": 50,
+    "priority": 500,
     "beat": 8
   },
   {
     "id": "scene-inciting",
     "strandType": "scene",
     "text": "What happens that makes the story start?",
-    "priority": 36,
+    "priority": 360,
     "beat": 15
   },
   {
     "id": "scene-decision",
     "strandType": "scene",
     "text": "What does the main character decide to do about it?",
-    "priority": 37,
+    "priority": 370,
     "beat": 25
   },
   {
     "id": "scene-first-cost",
     "strandType": "scene",
     "text": "What does that decision cost them first?",
-    "priority": 51,
+    "priority": 510,
     "beat": 35
   },
   {
@@ -343,74 +395,74 @@
     "strandType": "scene",
     "text": "What's the midpoint?",
     "hint": "The thing halfway through that changes what the story is about.",
-    "priority": 34,
+    "priority": 340,
     "beat": 50
   },
   {
     "id": "scene-no-going-back",
     "strandType": "scene",
     "text": "What's the moment they can't go back from?",
-    "priority": 38,
+    "priority": 380,
     "beat": 65
   },
   {
     "id": "scene-worst",
     "strandType": "scene",
     "text": "What's the worst thing that happens to them?",
-    "priority": 39,
+    "priority": 390,
     "beat": 75
   },
   {
     "id": "scene-lose",
     "strandType": "scene",
     "text": "What do they lose for good?",
-    "priority": 52,
+    "priority": 520,
     "beat": 80
   },
   {
     "id": "scene-climax",
     "strandType": "scene",
     "text": "What is the last hard thing they have to do?",
-    "priority": 53,
+    "priority": 530,
     "beat": 90
   },
   {
     "id": "scene-last",
     "strandType": "scene",
     "text": "What's the last scene?",
-    "priority": 35,
+    "priority": 350,
     "beat": 95
   },
   {
     "id": "scene-last-image",
     "strandType": "scene",
     "text": "What's the last image?",
-    "priority": 54,
+    "priority": 540,
     "beat": 100
   },
   {
     "id": "scene-excited",
     "strandType": "scene",
     "text": "What scene are you most excited to write?",
-    "priority": 55
+    "priority": 550
   },
   {
     "id": "scene-dreading",
     "strandType": "scene",
     "text": "What scene are you dreading?",
-    "priority": 56
+    "priority": 560
   },
   {
     "id": "scene-last-line",
     "strandType": "scene",
     "text": "What is the last line of dialogue anyone says?",
-    "priority": 57
+    "priority": 570
   },
   {
     "id": "scene-another",
     "strandType": "scene",
     "text": "What is another scene you can already see?",
-    "priority": 60,
+    "priority": 600,
     "repeatable": true
   }
 ]

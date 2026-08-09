@@ -42,6 +42,7 @@ final class DeckTests: XCTestCase {
     private func started() throws -> Project {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A logline.")
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "Marla")
         return p
     }
@@ -52,10 +53,21 @@ final class DeckTests: XCTestCase {
         XCTAssertEqual(Deck.nextQuestion(Stories.createProject())?.template.id, "logline")
     }
 
-    func testAsksWhoTheMainCharacterIsOnceTheLoglineIsDown() throws {
+    func testAsksForTheNameThenTheMainCharacter() throws {
         var p = Stories.createProject()
         p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "A diver goes back for the wreck.")
+        XCTAssertEqual(Deck.nextQuestion(p)?.template.id, "story-name")
+
+        p = Stories.applyAnswer(p, try XCTUnwrap(Deck.nextQuestion(p)), "The Wreck")
         XCTAssertEqual(Deck.nextQuestion(p)?.template.id, "main-character")
+    }
+
+    func testAsksWhereItIsSetOnceThereIsAMainCharacter() throws {
+        // The premise strand is thicker than a fresh character strand by this
+        // point, so a priority tie here would hand the question to the character
+        // deck and this one would never be asked. It must win outright.
+        let p = try started()
+        XCTAssertEqual(Deck.nextQuestion(p)?.template.id, "where-set")
     }
 
     func testSubstitutesTheSubjectIntoTheQuestionText() throws {
@@ -259,6 +271,170 @@ final class DeckTests: XCTestCase {
 
     func testStaysFastAsTheProjectGrows() {
         let p = answerMany(Stories.createProject(), 300)
+        let started = Date()
+        for _ in 0..<50 { _ = Deck.nextQuestion(p) }
+        XCTAssertLessThan(Date().timeIntervalSince(started), 2.0)
+    }
+
+    // MARK: - Questions about two people
+
+    /// Marla and Howard, connected, in a story with enough in it for the web to
+    /// be worth opening.
+    private func webbed() throws -> Project {
+        var p = try started()
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try strand(p, ofType: .character)
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "She still owes Howard money.")
+        while p.blocks.count < Webs.minBlocks {
+            p = Stories.addFreeBlock(p, strandId: marla.id, answer: "one more thing")
+        }
+        return p
+    }
+
+    private func characters(_ p: Project) -> [Strand] {
+        p.strands.filter { $0.type == .character }.sorted { $0.order < $1.order }
+    }
+
+    func testDoesNotAskAboutPairsUntilTheWebOpens() throws {
+        var p = try started()
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try strand(p, ofType: .character)
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "She still owes Howard money.")
+
+        // Connected, but the story is still too thin to be shown a web.
+        XCTAssertLessThan(p.blocks.count, Webs.minBlocks)
+
+        // Skipped rather than answered on purpose: answering lays down blocks,
+        // which is the very thing the threshold counts, and the web would open
+        // underneath the test.
+        var probe = p
+        for _ in 0..<40 {
+            guard let dealt = Deck.nextQuestion(probe) else { break }
+            XCTAssertFalse(dealt.template.isPair, "asked about a pair before the web opened")
+            probe = Stories.skipQuestion(
+                probe,
+                strandId: dealt.strand.id,
+                questionId: dealt.template.id,
+                aboutStrandId: dealt.about?.id
+            )
+        }
+
+        // Enough written down, and the same pair is worth asking about.
+        while p.blocks.count < Webs.minBlocks {
+            p = Stories.addFreeBlock(p, strandId: marla.id, answer: "one more thing")
+        }
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+        let dealt = Deck.nextQuestion(p, focusStrandId: marla.id, focusAboutStrandId: howard.id)
+        XCTAssertEqual(dealt?.template.isPair, true)
+    }
+
+    func testAsksAboutAConnectedPairFromBothSides() throws {
+        let p = try webbed()
+        let marla = try XCTUnwrap(characters(p).first)
+        let howard = try XCTUnwrap(characters(p).last)
+
+        let forward = try XCTUnwrap(
+            Deck.nextQuestion(p, focusStrandId: marla.id, focusAboutStrandId: howard.id)
+        )
+        XCTAssertTrue(forward.template.isPair)
+        XCTAssertEqual(forward.about?.id, howard.id)
+        XCTAssertTrue(forward.text.contains("Marla"))
+        XCTAssertTrue(forward.text.contains("Howard"))
+
+        let back = try XCTUnwrap(
+            Deck.nextQuestion(p, focusStrandId: howard.id, focusAboutStrandId: marla.id)
+        )
+        XCTAssertEqual(back.strand.id, howard.id)
+        XCTAssertEqual(back.about?.id, marla.id)
+    }
+
+    func testNeverDealsAPairQuestionWithTheOtherPersonMissing() throws {
+        // {other} left unsubstituted would be written onto the block and read
+        // back in the outline for ever.
+        var p = try webbed()
+        for _ in 0..<60 {
+            guard let dealt = Deck.nextQuestion(p) else { break }
+            XCTAssertFalse(dealt.text.contains("{other}"), "\(dealt.template.id) kept its placeholder")
+            XCTAssertFalse(dealt.text.contains("{subject}"))
+            if dealt.template.isPair { XCTAssertNotNil(dealt.about, "\(dealt.template.id) has no other") }
+            XCTAssertEqual(dealt.about != nil, dealt.template.isPair)
+            p = Stories.applyAnswer(p, dealt, "x")
+        }
+    }
+
+    func testAskingAboutOnePairDoesNotSpendTheQuestionOnAnother() throws {
+        var p = try webbed()
+        p = Stories.addStrand(p, type: .character, label: "Delia")
+        let marla = try XCTUnwrap(characters(p).first)
+        let delia = try XCTUnwrap(p.strands.first { $0.label == "Delia" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "Delia was there too.")
+
+        let asked = try XCTUnwrap(
+            Deck.nextQuestion(p, focusStrandId: marla.id, focusAboutStrandId: howard.id)
+        )
+        p = Stories.applyAnswer(p, asked, "Nothing kind.")
+
+        // The same question about Delia must still be on the table.
+        let next = try XCTUnwrap(
+            Deck.nextQuestion(p, focusStrandId: marla.id, focusAboutStrandId: delia.id)
+        )
+        XCTAssertEqual(next.template.id, asked.template.id)
+        XCTAssertEqual(next.about?.id, delia.id)
+    }
+
+    func testSkippingAPairQuestionOnlyStepsAsideForThatPair() throws {
+        var p = try webbed()
+        p = Stories.addStrand(p, type: .character, label: "Delia")
+        let marla = try XCTUnwrap(characters(p).first)
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+        let delia = try XCTUnwrap(p.strands.first { $0.label == "Delia" })
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "Delia was there too.")
+
+        let dealt = try XCTUnwrap(
+            Deck.nextQuestion(p, focusStrandId: marla.id, focusAboutStrandId: howard.id)
+        )
+        p = Stories.skipQuestion(
+            p, strandId: marla.id, questionId: dealt.template.id, aboutStrandId: howard.id
+        )
+
+        XCTAssertNotEqual(
+            Deck.nextQuestion(p, focusStrandId: marla.id, focusAboutStrandId: howard.id)?.template.id,
+            dealt.template.id
+        )
+        XCTAssertEqual(
+            Deck.nextQuestion(p, focusStrandId: marla.id, focusAboutStrandId: delia.id)?.template.id,
+            dealt.template.id
+        )
+    }
+
+    func testAKeyForAnOrdinaryQuestionIsUnchanged() {
+        // Every story file already on disk is full of two-part keys.
+        XCTAssertEqual(Deck.skipKey("s", "q"), "s::q")
+        XCTAssertEqual(Deck.skipKey("s", "q", about: "a"), "s::q::a")
+    }
+
+    func testStaysFastWithACastWhoAllKnowEachOther() {
+        // The perf test above answers "something" 300 times, which names nobody
+        // and so never exercises a single connection. This one does.
+        let names = [
+            "Marla", "Howard", "Delia", "Jim", "Rosa", "Tomas",
+            "Ingrid", "Petrov", "Cassidy", "Bellamy", "Nadia", "Ferran"
+        ]
+        var p = Stories.createProject()
+        for name in names { p = Stories.addStrand(p, type: .character, label: name) }
+
+        let strands = p.strands.filter { $0.type == .character }
+        for (i, strand) in strands.enumerated() {
+            for j in 0..<34 {
+                let other = names[(i + j + 1) % names.count]
+                p = Stories.addFreeBlock(p, strandId: strand.id, answer: "Something about \(other).")
+            }
+        }
+        XCTAssertGreaterThan(p.blocks.count, 400)
+        XCTAssertTrue(Webs.isOpen(p))
+        XCTAssertGreaterThan(Webs.edges(p).count, 10)
+
         let started = Date()
         for _ in 0..<50 { _ = Deck.nextQuestion(p) }
         XCTAssertLessThan(Date().timeIntervalSince(started), 2.0)

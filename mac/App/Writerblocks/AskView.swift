@@ -4,16 +4,27 @@ import WriterblocksCore
 /// One question, one line. Where the writer lives.
 struct AskView: View {
     @Binding var project: Project
+    /// Set by the web's "ask about these two". One-shot: answering it hands the
+    /// deck back, rather than pinning the writer to one pair with no way out.
+    @Binding var pairFocus: PairFocus?
 
     @State private var draft = ""
     @State private var focusStrandId: String?
     @FocusState private var fieldFocused: Bool
 
-    private var dealt: DealtQuestion? {
-        Deck.nextQuestion(project, focusStrandId: focusStrandId)
-    }
+    /// Held rather than recomputed, because `draft` lives in this view: as a
+    /// computed property this was re-dealing the whole deck on every keystroke,
+    /// and the deck is about to get a great deal more work to do.
+    @State private var dealt: DealtQuestion?
 
     private var stats: ProjectStats { OutlineBuilder.stats(project) }
+
+    /// Which question is on screen. The template id alone is not enough — the
+    /// same question asked about the next character is a new question, and the
+    /// field should take focus again.
+    private var questionIdentity: String? {
+        dealt.map { "\($0.strand.id)::\($0.template.id)::\($0.about?.id ?? "")" }
+    }
 
     var body: some View {
         VStack(spacing: 16) {
@@ -59,9 +70,14 @@ struct AskView: View {
 
                     Button("Skip for now") {
                         project = Stories.skipQuestion(
-                            project, strandId: dealt.strand.id, questionId: dealt.template.id
+                            project,
+                            strandId: dealt.strand.id,
+                            questionId: dealt.template.id,
+                            aboutStrandId: dealt.about?.id
                         )
                         draft = ""
+                        pairFocus = nil
+                        refreshQuestion()
                     }
                     .buttonStyle(.link)
 
@@ -92,14 +108,35 @@ struct AskView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 32)
-        .onAppear { fieldFocused = true }
-        .onChange(of: dealt?.template.id) { _, _ in fieldFocused = true }
+        .onAppear {
+            refreshQuestion()
+            fieldFocused = true
+        }
+        .onChange(of: questionIdentity) { _, _ in fieldFocused = true }
+        // Answering and skipping refresh the question themselves, so the new one
+        // is on screen in the same pass. This catches everything else — a block
+        // edited on the board, a strand added, a story reopened.
+        .onChange(of: project) { _, _ in refreshQuestion() }
+        .onChange(of: focusStrandId) { _, _ in refreshQuestion() }
+        .onChange(of: pairFocus) { _, _ in refreshQuestion() }
         .onChange(of: project.strands.count) { _, _ in
             // A focused strand that was deleted must not keep filtering.
             if let id = focusStrandId, !project.strands.contains(where: { $0.id == id }) {
                 focusStrandId = nil
             }
         }
+    }
+
+    private func refreshQuestion() {
+        if let pairFocus {
+            dealt = Deck.nextQuestion(
+                project,
+                focusStrandId: pairFocus.subject,
+                focusAboutStrandId: pairFocus.about
+            )
+            return
+        }
+        dealt = Deck.nextQuestion(project, focusStrandId: focusStrandId)
     }
 
     private var focusable: [Strand] {
@@ -135,5 +172,9 @@ struct AskView: View {
         guard let dealt else { return }
         project = Stories.applyAnswer(project, dealt, text)
         draft = ""
+        // Being sent here from the web means "ask me about these two", not
+        // "keep me on these two" — that is what the focus picker is for.
+        pairFocus = nil
+        refreshQuestion()
     }
 }
