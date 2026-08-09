@@ -13,6 +13,45 @@ struct BoardView: View {
         project.strands.sorted { $0.order < $1.order }
     }
 
+    /// A run of columns drawn together: a setting and the locations inside it,
+    /// or a single column standing on its own.
+    private struct ColumnRun: Identifiable {
+        let id: String
+        /// nil unless this run is a setting with locations to show inside it.
+        let setting: Strand?
+        let columns: [Strand]
+    }
+
+    /// The board in reading order, with each setting's locations kept beside it.
+    ///
+    /// A setting with nothing inside it stays an ordinary column — a band drawn
+    /// round one thing says there is a grouping when there is not.
+    private var runs: [ColumnRun] {
+        let all = strands
+        let settingIds = Set(all.filter { $0.placeTier == .setting }.map(\.id))
+        var inside: [String: [Strand]] = [:]
+        for strand in all {
+            guard let parent = strand.parentStrandId, settingIds.contains(parent) else { continue }
+            inside[parent, default: []].append(strand)
+        }
+
+        var out: [ColumnRun] = []
+        for strand in all {
+            // A location is drawn as part of its setting's run, not on its own.
+            if let parent = strand.parentStrandId, settingIds.contains(parent) { continue }
+
+            let locations = inside[strand.id] ?? []
+            out.append(
+                ColumnRun(
+                    id: strand.id,
+                    setting: locations.isEmpty ? nil : strand,
+                    columns: [strand] + locations
+                )
+            )
+        }
+        return out
+    }
+
     /// Grouped once for the whole board rather than each column re-filtering and
     /// re-sorting the entire project on every body evaluation.
     private var blocksByStrand: [String: [Block]] {
@@ -31,17 +70,59 @@ struct BoardView: View {
 
             ScrollView(.horizontal) {
                 HStack(alignment: .top, spacing: 16) {
-                    ForEach(strands) { strand in
-                        StrandColumnView(
-                            project: $project,
-                            strand: strand,
-                            blocks: grouped[strand.id] ?? [],
-                            onMove: move
-                        )
+                    ForEach(runs) { run in
+                        // Deliberately plain. This wrapper carries a background
+                        // and a caption and nothing else: no state of its own,
+                        // no drop destination, no content shape, and no size
+                        // that depends on a drag. Any of those would put an
+                        // ancestor in the path of every card drop, or move the
+                        // targets under the pointer mid-drag.
+                        HStack(alignment: .top, spacing: 16) {
+                            ForEach(run.columns) { strand in
+                                StrandColumnView(
+                                    project: $project,
+                                    strand: strand,
+                                    blocks: grouped[strand.id] ?? [],
+                                    onMove: move
+                                )
+                            }
+                        }
+                        .padding(run.setting == nil ? 0 : 10)
+                        .background(settingBand(for: run))
+                        .overlay(alignment: .topLeading) { settingCaption(for: run) }
                     }
                 }
                 .padding(16)
+                .padding(.top, 6)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func settingBand(for run: ColumnRun) -> some View {
+        if run.setting != nil {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color.secondary.opacity(0.07))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(Color.secondary.opacity(0.18), lineWidth: 1)
+                )
+        }
+    }
+
+    @ViewBuilder
+    private func settingCaption(for run: ColumnRun) -> some View {
+        if let setting = run.setting {
+            Text(setting.label.uppercased())
+                .font(.caption2)
+                .tracking(1.1)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .background(Color(nsColor: .windowBackgroundColor))
+                .offset(x: 14, y: -7)
+                // Decoration only. The board already keeps its overlays out of
+                // the way of the drag this way.
+                .allowsHitTesting(false)
         }
     }
 
@@ -214,6 +295,21 @@ private struct StrandColumnView: View {
             }
 
             Spacer()
+
+            // Only on a setting, and here rather than in the add bar at the
+            // top, because this is the one place the new location's setting is
+            // already decided — no picker, nothing to get wrong.
+            if strand.placeTier == .setting {
+                Button {
+                    project = Stories.addStrand(
+                        project, type: .setting, label: "Untitled", parentStrandId: strand.id
+                    )
+                } label: {
+                    Image(systemName: "plus").font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .help("Add a location in \(strand.label)")
+            }
 
             if strand.type == .character || strand.type == .setting {
                 Button {
