@@ -22,6 +22,9 @@ struct StoryView: View {
 
     @State private var tab: EditorTab = .ask
     @State private var pairFocus: PairFocus?
+    @State private var renaming = false
+    @State private var draftTitle = ""
+    @FocusState private var titleFocused: Bool
 
     /// The web only earns a tab once there are people in it and enough written
     /// down to be worth looking at.
@@ -75,6 +78,10 @@ struct StoryView: View {
                 .help("Back to your stories")
             }
 
+            ToolbarItem(placement: .navigation) {
+                titleField
+            }
+
             ToolbarItem(placement: .principal) {
                 Picker("View", selection: $tab) {
                     ForEach(tabs) { Text($0.rawValue).tag($0) }
@@ -89,6 +96,46 @@ struct StoryView: View {
                     .foregroundStyle(.secondary)
             }
         }
+    }
+
+    /// The story's name, click to change it.
+    ///
+    /// Not the real title bar: making that editable means handing the window a
+    /// document proxy, whose menu offers Rename and Move To. Those rename the
+    /// *file*, and the store writes to the path it was opened with — so a
+    /// system rename would quietly resurrect the old file on the next save.
+    @ViewBuilder
+    private var titleField: some View {
+        if renaming {
+            TextField("Name", text: $draftTitle)
+                .textFieldStyle(.plain)
+                .font(.headline)
+                .frame(width: 200)
+                .focused($titleFocused)
+                .onSubmit(commitRename)
+                // Clicking away commits too. Throwing the edit out because the
+                // writer looked at something else is the kind of small
+                // betrayal that stops people trusting a text field.
+                .onChange(of: titleFocused) { _, focused in
+                    if !focused { commitRename() }
+                }
+        } else {
+            Text(store.project.title)
+                .font(.headline)
+                .lineLimit(1)
+                .help("\(store.project.title) — click to rename")
+                .onTapGesture {
+                    draftTitle = store.project.title
+                    renaming = true
+                    titleFocused = true
+                }
+        }
+    }
+
+    private func commitRename() {
+        guard renaming else { return }
+        renaming = false
+        store.project = Stories.retitle(store.project, title: draftTitle)
     }
 
     private var savedLabel: String {

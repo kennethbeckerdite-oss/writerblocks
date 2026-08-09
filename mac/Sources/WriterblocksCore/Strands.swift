@@ -295,4 +295,36 @@ public enum Stories {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         return touched(project) { $0.title = trimmed.isEmpty ? "Untitled story" : trimmed }
     }
+
+    /// Rename the story the way the writer means it — the title, and the answer
+    /// they gave when it asked what to call it.
+    ///
+    /// Without the second half the outline reads "Okay — what's it called? The
+    /// Wreck" underneath a story titled Deep Water, which is a contradiction
+    /// nobody asked for.
+    ///
+    /// But that answer is a sentence the writer wrote, and rewriting those is
+    /// not something this app does. So it is only touched when it is provably
+    /// where the current title came from — if they have already changed one
+    /// without the other, that difference was deliberate and is left alone.
+    ///
+    /// A blank name is refused outright rather than falling through to
+    /// "Untitled story": clearing the field and pressing return is a slip, not
+    /// a request to un-name the story.
+    public static func retitle(_ project: Project, title: String) -> Project {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, trimmed != project.title else { return project }
+
+        let namingIds = Set(Questions.all.filter { $0.titles == true }.map(\.id))
+        var next = renameProject(project, title: trimmed)
+
+        for i in next.blocks.indices {
+            guard let questionId = next.blocks[i].questionId, namingIds.contains(questionId),
+                  labelFromAnswer(next.blocks[i].answer) == project.title
+            else { continue }
+            next.blocks[i].answer = trimmed
+        }
+
+        return next
+    }
 }
