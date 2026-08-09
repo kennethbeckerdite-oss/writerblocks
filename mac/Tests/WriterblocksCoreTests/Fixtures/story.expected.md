@@ -15,7 +15,7 @@ _11 blocks, 1 still open._
 - _What does Marla do for a living?_ She dives for salvage.
 - _What is Marla afraid of?_ — **still open**
 
-## Places
+## Setting
 
 ### A harbour town in February
 

@@ -27,7 +27,7 @@ public enum OutlineBuilder {
     private static let headings: [OutlineSection: String] = [
         .premise: "Premise",
         .character: "Characters",
-        .setting: "Places",
+        .setting: "Setting",
         .structure: "Shape of the story"
     ]
 
