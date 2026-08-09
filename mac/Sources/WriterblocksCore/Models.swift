@@ -211,6 +211,17 @@ public struct OutlineGroup: Equatable, Identifiable, Sendable {
     public let id: String
     public let heading: String?
     public let blocks: [Block]
+    /// How far in this sits: 0 for a subject in its own right, 1 for a location
+    /// inside a setting. Flat rather than a tree of children, because two
+    /// levels is the whole of it and a tree would be shape without a use.
+    public let depth: Int
+
+    public init(id: String, heading: String?, blocks: [Block], depth: Int = 0) {
+        self.id = id
+        self.heading = heading
+        self.blocks = blocks
+        self.depth = depth
+    }
 }
 
 public struct OutlineSectionView: Equatable, Identifiable, Sendable {

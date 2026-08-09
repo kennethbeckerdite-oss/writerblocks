@@ -40,9 +40,14 @@ public enum Markdown {
             out.append("")
             for group in section.groups {
                 if let heading = group.heading {
-                    out.append("### \(heading)")
+                    out.append(String(repeating: "#", count: 3 + group.depth) + " \(heading)")
                     out.append("")
                 }
+                // A setting whose locations carry all the writing is a heading
+                // with nothing under it. Without this guard the blank after the
+                // heading and the blank after the empty run of blocks land back
+                // to back, and the export grows a hole.
+                guard !group.blocks.isEmpty else { continue }
                 for block in group.blocks { out.append(line(block)) }
                 out.append("")
             }
