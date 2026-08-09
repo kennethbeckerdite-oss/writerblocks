@@ -242,13 +242,22 @@ struct AskView: View {
             .sorted { $0.order < $1.order }
     }
 
+    /// A location says which setting it is in. Two houses with a kitchen each
+    /// would otherwise be the same row twice, with no way to pick the right one.
+    private func focusLabel(_ strand: Strand) -> String {
+        guard let parentId = strand.parentStrandId,
+              let parent = project.strands.first(where: { $0.id == parentId })
+        else { return strand.label }
+        return "\(strand.label) — in \(parent.label)"
+    }
+
     @ViewBuilder
     private var focusPicker: some View {
         if !focusable.isEmpty {
             Picker("Keep asking me about", selection: $focusStrandId) {
                 Text("anything").tag(String?.none)
                 ForEach(focusable) { strand in
-                    Text(strand.label).tag(String?.some(strand.id))
+                    Text(focusLabel(strand)).tag(String?.some(strand.id))
                 }
             }
             .pickerStyle(.menu)
@@ -260,7 +269,11 @@ struct AskView: View {
         let s = stats
         var parts = ["\(s.blocks) block\(s.blocks == 1 ? "" : "s")"]
         if s.characters > 0 { parts.append("\(s.characters) character\(s.characters == 1 ? "" : "s")") }
-        if s.settings > 0 { parts.append("\(s.settings) place\(s.settings == 1 ? "" : "s")") }
+        // Settings and locations counted together on purpose. This line exists
+        // because visible accumulation is the antidote to "I have nothing to
+        // say", and splitting one number into two smaller ones works against
+        // that. The engine carries both, so this can change its mind later.
+        if s.places > 0 { parts.append("\(s.places) place\(s.places == 1 ? "" : "s")") }
         if s.scenes > 0 { parts.append("\(s.scenes) scene\(s.scenes == 1 ? "" : "s")") }
         return parts.joined(separator: " · ")
     }

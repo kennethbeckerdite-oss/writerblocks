@@ -16,8 +16,14 @@ public struct ProjectStats: Equatable, Sendable {
     public let answered: Int
     public let open: Int
     public let characters: Int
+    /// Places the story happens in — not the spots inside them.
     public let settings: Int
+    /// Spots inside a setting.
+    public let locations: Int
     public let scenes: Int
+
+    /// What a writer thinks of as "places", which is both.
+    public var places: Int { settings + locations }
 }
 
 public enum OutlineBuilder {
@@ -153,6 +159,10 @@ public enum OutlineBuilder {
             project.strands.filter { $0.type == type }.count
         }
 
+        func count(_ tier: PlaceTier) -> Int {
+            project.strands.filter { $0.placeTier == tier }.count
+        }
+
         let sceneStrandIds = Set(project.strands.filter { $0.type == .scene }.map(\.id))
         let sceneBlocks = project.blocks.filter { sceneStrandIds.contains($0.strandId) }.count
 
@@ -161,7 +171,8 @@ public enum OutlineBuilder {
             answered: answered,
             open: project.blocks.count - answered,
             characters: count(.character),
-            settings: count(.setting),
+            settings: count(PlaceTier.setting),
+            locations: count(PlaceTier.location),
             scenes: sceneBlocks
         )
     }

@@ -112,9 +112,19 @@ private struct StrandColumnView: View {
         switch strand.type {
         case .premise: return "PREMISE"
         case .character: return "CHARACTER"
-        case .setting: return "PLACE"
+        case .setting: return strand.parentStrandId == nil ? "SETTING" : "LOCATION"
         case .scene: return "SCENES"
         }
+    }
+
+    /// Deleting a setting does not take the locations inside it — they keep
+    /// everything written about them and become settings. Saying so, because
+    /// "and its blocks" would be a promise about their sentences too.
+    private var deleteHelp: String {
+        let inside = project.strands.filter { $0.parentStrandId == strand.id }.count
+        guard inside > 0 else { return "Delete \(strand.label) and its blocks" }
+        let plural = inside == 1 ? "location stays" : "locations stay"
+        return "Delete \(strand.label) and its blocks — its \(inside) \(plural)"
     }
 
     var body: some View {
@@ -212,7 +222,7 @@ private struct StrandColumnView: View {
                     Image(systemName: "xmark").font(.caption)
                 }
                 .buttonStyle(.borderless)
-                .help("Delete \(strand.label) and its blocks")
+                .help(deleteHelp)
             }
         }
         .padding(10)

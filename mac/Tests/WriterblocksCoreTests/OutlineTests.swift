@@ -146,6 +146,8 @@ final class OutlineTests: XCTestCase {
         XCTAssertEqual(s.open, 1)
         XCTAssertEqual(s.characters, 1)
         XCTAssertEqual(s.settings, 1)
+        XCTAssertEqual(s.locations, 0)
+        XCTAssertEqual(s.places, 1)
     }
 
     // MARK: - Places inside places
@@ -191,6 +193,13 @@ final class OutlineTests: XCTestCase {
         p = Stories.addStrand(p, type: .setting, label: "The 7-11", parentStrandId: oregon.id)
 
         XCTAssertNil(OutlineBuilder.build(p).first { $0.section == .setting })
+    }
+
+    func testCountsTheTwoScalesOfPlaceApartAndTogether() throws {
+        let s = OutlineBuilder.stats(try nested(settingHasBlocks: true))
+        XCTAssertEqual(s.settings, 1)
+        XCTAssertEqual(s.locations, 1)
+        XCTAssertEqual(s.places, 2)
     }
 
     func testWritesALocationOneLevelDeeperInMarkdown() throws {
