@@ -35,19 +35,21 @@ mac/Sources/WriterblocksCore/      pure logic, no UI, no I/O
   Models.swift                     Project, Strand, Block, QuestionTemplate
   Questions.swift                  loads questions.json, builds gating indexes
   Deck.swift                       nextQuestion: gating, skips, spreading attention
-  Strands.swift                    every mutation: answer, spawn, move, edit
+  Strands.swift                    every mutation: answer, spawn, move, edit, link
+  Webs.swift                       derived connections between characters
   Outline.swift                    blocks → outline sections + stats
   Markdown.swift                   outline → exportable Markdown
   StoryFile.swift                  tolerant .writerblocks reader/writer
-  Resources/questions.json         the 62 questions — content, meant to be edited
-mac/Tests/WriterblocksCoreTests/   75 tests, incl. a cross-implementation fixture
+  Resources/questions.json         the 69 questions — content, meant to be edited
+mac/Tests/WriterblocksCoreTests/   115 tests, incl. a cross-implementation fixture
 mac/App/project.yml                XcodeGen spec (no .pbxproj in the repo)
 mac/App/Writerblocks/              SwiftUI app
   WriterblocksApp.swift            single Window, menu commands, NSApplicationDelegate
   RootView.swift                   Route + AppRouter + the crossfade
   StoryStore.swift                 open story, debounced autosave, save errors
   HomeView.swift                   logline question + 4-column story grid
-  StoryView.swift                  Ask/Board/Outline tabs, Home button, save indicator
+  StoryView.swift                  Ask/Board/Web/Outline tabs, Home button, save indicator
+  WebView.swift                    the character graph, drag to connect
   AskView.swift  BoardView.swift  OutlineDocumentView.swift  StoryLibrary.swift
 
 src/                               web prototype (React) — disposable
@@ -59,7 +61,7 @@ e2e/walkthrough.mjs                27-check browser walkthrough of the prototype
 ## Commands
 
 ```sh
-swift test --package-path mac          # 75 engine tests, no Xcode needed
+swift test --package-path mac          # 115 engine tests, no Xcode needed
 cd mac/App && xcodegen generate        # writes Writerblocks.xcodeproj (gitignored)
 open mac/App/Writerblocks.xcodeproj    # then ⌘R
 
@@ -80,6 +82,13 @@ so re-check before concluding anything.
 
 `mac.yml` has a `paths:` filter on `mac/**`, so changes outside `mac/` will not
 re-run it. That is intended, not a fault.
+
+**`mac.yml` only runs on pushes to `main` and one named branch**, so a push to a
+new working branch runs nothing at all. It has `workflow_dispatch`, so dispatch
+it against the branch instead (`mcp__github__actions_run_trigger`,
+`method: run_workflow`, `ref: <branch>`) rather than editing the trigger list.
+The `concurrency` group cancels the previous run for the same ref, so dispatch
+once per push and read that run.
 
 **CI proves it compiles and the tests pass. It cannot tell you how anything
 feels.** Visual and interaction judgements belong to the owner — say so rather
@@ -125,6 +134,34 @@ before me", counting the column *as displayed* (including the dragged card),
 while the insert happens with that card lifted out.
 `Stories.moveBlock(toDisplayIndex:)` holds that adjustment, with tests. Do not
 reimplement it in a view.
+
+**Connections between characters are derived, never stored.** `Webs.edges`
+recomputes them from block answers × character labels on every call, for the
+same reason an outline section is derived: correcting a character's name
+re-forms the web for free and there is no second copy to drift. The only stored
+part is `Block.aboutStrandId`, which records who a two-person question was
+*about* — and even that is never needed to render the block, because both names
+are substituted into `prompt` when it is written. Do not add a `links` array.
+
+**Mentions are scanned in `answer` only, never in `prompt`.** A prompt names its
+own subject by construction, and a pair prompt names both, so scanning prompts
+would have every block prove its own link. There is a comment saying so in
+`Webs.edges`; it is the kind of thing a later "optimisation" reintroduces.
+
+**A skip key carries the other person when there is one.** `Deck.skipKey` is the
+tally key as well as the skip key, so a two-part key for a pair question would
+make "what does Marla think of Howard?" count as having asked what she thinks of
+everyone. The two-part form for ordinary questions is byte-identical to what it
+always was — every story file on disk is full of those keys, and
+`StoryLibrary.duplicated` splits on `::`.
+
+**The tally reads the pair link off the block, not off the template.** Deleting a
+character nulls `aboutStrandId` and leaves pair blocks behind with no other;
+keyed off the block they match nothing, which is right.
+
+**Pair templates are character templates**, so the ordinary candidate loop has to
+skip them explicitly. Dealt from there they would carry no other and store
+`{other}` unsubstituted on a block, to be read back in the outline for ever.
 
 **Question text is stored on the block and read back in the outline.** Keep
 coaching in `hint`, keep `text` under 70 characters. A deck-integrity test
@@ -179,6 +216,17 @@ Open panel.
 5. **Board drag feel** — improved over three rounds; if a residual pause on drop
    remains, the next lever is replacing the system drag with a pointer-driven
    one, which costs hand-written auto-scroll and cross-column hit-testing.
-6. **The deck exists twice** while the prototype lives — `questions.json` (Swift,
-   authoritative) and `src/data/questions.ts` (web). Edits must go to both, or to
-   the JSON only once the prototype is gone.
+6. **The deck has diverged.** `questions.json` (Swift) now has seven questions
+   `src/data/questions.ts` does not — the naming question and six about pairs —
+   and all its priorities are ×10. The prototype's engine has no `titles` and no
+   pair machinery, so copying the questions across without porting the engine
+   would make it ask "what's it called?" and silently do nothing. The
+   cross-implementation fixture is unaffected and still passes: it tests stored
+   data, not the deck. This is an argument for item 2.
+7. **Un-drawing a mention is not possible.** A false positive — "Howard Street"
+   connecting to Howard — can only be removed by editing the sentence. A
+   suppression list would be stored state contradicting derived state, which is
+   the trap `Webs` exists to avoid. Revisit only if it actually annoys someone.
+8. **The web's two thresholds are guesses** — `Webs.minCharacters` (2) and
+   `Webs.minBlocks` (15). The second is a feel judgement about when a graph
+   stops being discouraging, and has never been tried on a real story.
