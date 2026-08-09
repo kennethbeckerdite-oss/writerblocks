@@ -166,16 +166,26 @@ enum StoryLibrary {
             var b = block
             b.id = UUID().uuidString
             b.strandId = newStrandId
+            // A block about two people points at a second strand, and that one
+            // needs remapping just as much as the strand it sits on.
+            b.aboutStrandId = block.aboutStrandId.flatMap { strandIds[$0] }
             blockIds[block.id] = b.id
             return b
         }
 
-        // Skips are keyed by strand id, so they have to be remapped too.
+        // Skips are keyed by strand id, so they have to be remapped too. A key
+        // can carry a second strand id when the question was asked about two
+        // people; remap every id in the key rather than only the first.
         var skipped: [String: Int] = [:]
         for (key, at) in project.skipped {
-            let parts = key.components(separatedBy: "::")
-            guard parts.count == 2, let newStrandId = strandIds[parts[0]] else { continue }
-            skipped[Deck.skipKey(newStrandId, parts[1])] = at
+            var parts = key.components(separatedBy: "::")
+            guard parts.count >= 2, let newStrandId = strandIds[parts[0]] else { continue }
+            parts[0] = newStrandId
+            if parts.count > 2 {
+                guard let newAbout = strandIds[parts[2]] else { continue }
+                parts[2] = newAbout
+            }
+            skipped[parts.joined(separator: "::")] = at
         }
         copy.skipped = skipped
 

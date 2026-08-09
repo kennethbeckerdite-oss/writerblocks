@@ -113,6 +113,44 @@ final class StoryFileTests: XCTestCase {
         XCTAssertGreaterThan(restored.createdAt, 0)
     }
 
+    func testKeepsABlockWhoseLinkPointsAtAStrandThatIsGone() throws {
+        var raw = try fixtureObject()
+        var blocks = try XCTUnwrap(raw["blocks"] as? [Any])
+        var first = try XCTUnwrap(blocks[0] as? [String: Any])
+        let id = try XCTUnwrap(first["id"] as? String)
+        first["aboutStrandId"] = "a strand that is not in this file"
+        blocks[0] = first
+        raw["blocks"] = blocks
+
+        // The names are already written into the prompt, so the sentence is
+        // still worth reading. Only the link is lost.
+        let restored = try XCTUnwrap(StoryFile.parse(raw))
+        XCTAssertEqual(restored.blocks.count, 11)
+        XCTAssertNil(try XCTUnwrap(restored.blocks.first { $0.id == id }).aboutStrandId)
+    }
+
+    func testReadsALinkBetweenTwoStrandsAndSurvivesAMalformedOne() throws {
+        var raw = try fixtureObject()
+        let strandIds = try XCTUnwrap(raw["strands"] as? [Any])
+            .compactMap { ($0 as? [String: Any])?["id"] as? String }
+        var blocks = try XCTUnwrap(raw["blocks"] as? [Any])
+
+        var good = try XCTUnwrap(blocks[0] as? [String: Any])
+        good["aboutStrandId"] = strandIds[1]
+        blocks[0] = good
+
+        var bad = try XCTUnwrap(blocks[1] as? [String: Any])
+        bad["aboutStrandId"] = 42
+        blocks[1] = bad
+
+        raw["blocks"] = blocks
+
+        let restored = try XCTUnwrap(StoryFile.parse(raw))
+        XCTAssertEqual(restored.blocks.count, 11)
+        XCTAssertEqual(restored.blocks[0].aboutStrandId, strandIds[1])
+        XCTAssertNil(restored.blocks[1].aboutStrandId)
+    }
+
     func testIgnoresUnknownFieldsFromANewerBuild() throws {
         var raw = try fixtureObject()
         raw["somethingFromTheFuture"] = ["nested": true]

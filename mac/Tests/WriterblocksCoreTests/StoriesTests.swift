@@ -134,6 +134,58 @@ final class StoriesTests: XCTestCase {
         XCTAssertTrue(p.blocks.isEmpty)
     }
 
+    func testKeepsTheSentenceWhenTheCharacterItWasAboutIsDeleted() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "She still owes him.")
+        let blockId = try XCTUnwrap(p.blocks.first).id
+        p.blocks[0].aboutStrandId = howard.id
+
+        p = Stories.deleteStrand(p, strandId: howard.id)
+
+        let block = try XCTUnwrap(p.blocks.first { $0.id == blockId })
+        XCTAssertEqual(block.answer, "She still owes him.")
+        XCTAssertNil(block.aboutStrandId, "a link to a deleted strand must not survive")
+    }
+
+    func testDroppingAPairBlockInAnotherColumnBreaksItsLink() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "She still owes him.")
+        let blockId = try XCTUnwrap(p.blocks.first).id
+        p.blocks[0].aboutStrandId = howard.id
+
+        // Dropped onto Howard, the block would otherwise claim to be about
+        // Howard from Howard's own side.
+        p = Stories.moveBlock(p, blockId: blockId, toStrandId: howard.id, toIndex: 0)
+
+        let block = try XCTUnwrap(p.blocks.first { $0.id == blockId })
+        XCTAssertEqual(block.strandId, howard.id)
+        XCTAssertNil(block.aboutStrandId)
+    }
+
+    func testKeepsTheLinkWhenAPairBlockIsJustReorderedInItsOwnColumn() throws {
+        var p = Stories.addStrand(Stories.createProject(), type: .character, label: "Marla")
+        p = Stories.addStrand(p, type: .character, label: "Howard")
+        let marla = try XCTUnwrap(p.strands.first { $0.label == "Marla" })
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "one")
+        p = Stories.addFreeBlock(p, strandId: marla.id, answer: "two")
+        let blockId = try XCTUnwrap(p.blocks.first).id
+        p.blocks[0].aboutStrandId = howard.id
+
+        p = Stories.moveBlock(p, blockId: blockId, toStrandId: marla.id, toIndex: 1)
+
+        XCTAssertEqual(p.blocks.first { $0.id == blockId }?.aboutStrandId, howard.id)
+    }
+
     func testEditsAndDeletesABlock() throws {
         var p = Stories.createProject()
         let premise = try XCTUnwrap(p.strands.first { $0.type == .premise })

@@ -92,6 +92,12 @@ public enum Stories {
         touched(project) { p in
             p.strands.removeAll { $0.id == strandId }
             p.blocks.removeAll { $0.strandId == strandId }
+            // Blocks elsewhere that were about this one keep their sentence and
+            // lose the link. "What does Marla think of Howard?" is still worth
+            // reading once Howard is gone; a pointer to nothing is not.
+            for i in p.blocks.indices where p.blocks[i].aboutStrandId == strandId {
+                p.blocks[i].aboutStrandId = nil
+            }
         }
     }
 
@@ -187,6 +193,11 @@ public enum Stories {
         let clamped = max(0, min(toIndex, target.count))
         var relocated = moving
         relocated.strandId = toStrandId
+        // Dragged to another column, a block about two people is no longer about
+        // the pair it was — dropped onto Howard it would claim to be Howard
+        // asking about Howard. The prompt already reads as written; only the
+        // link has to go.
+        if fromStrandId != toStrandId { relocated.aboutStrandId = nil }
 
         var merged = target
         merged.insert(relocated, at: clamped)

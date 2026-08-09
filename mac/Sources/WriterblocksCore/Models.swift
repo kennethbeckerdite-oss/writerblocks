@@ -52,6 +52,13 @@ public struct Block: Codable, Equatable, Identifiable, Sendable {
     /// Position within the strand.
     public var order: Int
     public var createdAt: Double
+    /// The other character this block is about, for a question asked about two
+    /// people at once. nil for every ordinary block.
+    ///
+    /// The block still lives on one strand and still takes its outline section
+    /// from that strand; this only records who else it concerns. The names are
+    /// already substituted into `prompt`, so nothing downstream has to read it.
+    public var aboutStrandId: String?
 
     public init(
         id: String,
@@ -61,7 +68,8 @@ public struct Block: Codable, Equatable, Identifiable, Sendable {
         answer: String,
         beat: Int?,
         order: Int,
-        createdAt: Double
+        createdAt: Double,
+        aboutStrandId: String? = nil
     ) {
         self.id = id
         self.strandId = strandId
@@ -71,6 +79,7 @@ public struct Block: Codable, Equatable, Identifiable, Sendable {
         self.beat = beat
         self.order = order
         self.createdAt = createdAt
+        self.aboutStrandId = aboutStrandId
     }
 }
 
