@@ -4,9 +4,16 @@ import WriterblocksCore
 enum EditorTab: String, CaseIterable, Identifiable {
     case ask = "Ask"
     case board = "Board"
+    case web = "Web"
     case outline = "Outline"
 
     var id: String { rawValue }
+}
+
+/// "Ask me about these two" — a one-shot, cleared as soon as it is answered.
+struct PairFocus: Equatable {
+    let subject: String
+    let about: String
 }
 
 struct StoryView: View {
@@ -14,6 +21,13 @@ struct StoryView: View {
     let onHome: () -> Void
 
     @State private var tab: EditorTab = .ask
+    @State private var pairFocus: PairFocus?
+
+    /// The web only earns a tab once there are people in it and enough written
+    /// down to be worth looking at.
+    private var tabs: [EditorTab] {
+        Webs.isOpen(store.project) ? EditorTab.allCases : EditorTab.allCases.filter { $0 != .web }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,12 +48,21 @@ struct StoryView: View {
 
             switch tab {
             case .ask:
-                AskView(project: $store.project)
+                AskView(project: $store.project, pairFocus: $pairFocus)
             case .board:
                 BoardView(project: $store.project)
+            case .web:
+                WebView(project: $store.project) { subject, about in
+                    pairFocus = PairFocus(subject: subject, about: about)
+                    tab = .ask
+                }
             case .outline:
                 OutlineDocumentView(project: store.project, onExport: store.exportMarkdown)
             }
+        }
+        .onChange(of: tabs) { _, available in
+            // The last character was deleted while the web was open.
+            if !available.contains(tab) { tab = .ask }
         }
         .navigationTitle(store.project.title)
         .toolbar {
@@ -54,10 +77,10 @@ struct StoryView: View {
 
             ToolbarItem(placement: .principal) {
                 Picker("View", selection: $tab) {
-                    ForEach(EditorTab.allCases) { Text($0.rawValue).tag($0) }
+                    ForEach(tabs) { Text($0.rawValue).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                .frame(width: 240)
+                .frame(width: tabs.count > 3 ? 300 : 240)
             }
 
             ToolbarItem(placement: .primaryAction) {

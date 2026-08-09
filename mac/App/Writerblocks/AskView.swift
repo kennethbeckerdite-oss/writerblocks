@@ -4,6 +4,9 @@ import WriterblocksCore
 /// One question, one line. Where the writer lives.
 struct AskView: View {
     @Binding var project: Project
+    /// Set by the web's "ask about these two". One-shot: answering it hands the
+    /// deck back, rather than pinning the writer to one pair with no way out.
+    @Binding var pairFocus: PairFocus?
 
     @State private var draft = ""
     @State private var focusStrandId: String?
@@ -73,6 +76,7 @@ struct AskView: View {
                             aboutStrandId: dealt.about?.id
                         )
                         draft = ""
+                        pairFocus = nil
                         refreshQuestion()
                     }
                     .buttonStyle(.link)
@@ -114,6 +118,7 @@ struct AskView: View {
         // edited on the board, a strand added, a story reopened.
         .onChange(of: project) { _, _ in refreshQuestion() }
         .onChange(of: focusStrandId) { _, _ in refreshQuestion() }
+        .onChange(of: pairFocus) { _, _ in refreshQuestion() }
         .onChange(of: project.strands.count) { _, _ in
             // A focused strand that was deleted must not keep filtering.
             if let id = focusStrandId, !project.strands.contains(where: { $0.id == id }) {
@@ -123,6 +128,14 @@ struct AskView: View {
     }
 
     private func refreshQuestion() {
+        if let pairFocus {
+            dealt = Deck.nextQuestion(
+                project,
+                focusStrandId: pairFocus.subject,
+                focusAboutStrandId: pairFocus.about
+            )
+            return
+        }
         dealt = Deck.nextQuestion(project, focusStrandId: focusStrandId)
     }
 
@@ -159,6 +172,9 @@ struct AskView: View {
         guard let dealt else { return }
         project = Stories.applyAnswer(project, dealt, text)
         draft = ""
+        // Being sent here from the web means "ask me about these two", not
+        // "keep me on these two" — that is what the focus picker is for.
+        pairFocus = nil
         refreshQuestion()
     }
 }

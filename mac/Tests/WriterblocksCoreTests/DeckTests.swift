@@ -303,12 +303,29 @@ final class DeckTests: XCTestCase {
 
         // Connected, but the story is still too thin to be shown a web.
         XCTAssertLessThan(p.blocks.count, Webs.minBlocks)
+
+        // Skipped rather than answered on purpose: answering lays down blocks,
+        // which is the very thing the threshold counts, and the web would open
+        // underneath the test.
         var probe = p
         for _ in 0..<40 {
             guard let dealt = Deck.nextQuestion(probe) else { break }
             XCTAssertFalse(dealt.template.isPair, "asked about a pair before the web opened")
-            probe = Stories.applyAnswer(probe, dealt, "x")
+            probe = Stories.skipQuestion(
+                probe,
+                strandId: dealt.strand.id,
+                questionId: dealt.template.id,
+                aboutStrandId: dealt.about?.id
+            )
         }
+
+        // Enough written down, and the same pair is worth asking about.
+        while p.blocks.count < Webs.minBlocks {
+            p = Stories.addFreeBlock(p, strandId: marla.id, answer: "one more thing")
+        }
+        let howard = try XCTUnwrap(p.strands.first { $0.label == "Howard" })
+        let dealt = Deck.nextQuestion(p, focusStrandId: marla.id, focusAboutStrandId: howard.id)
+        XCTAssertEqual(dealt?.template.isPair, true)
     }
 
     func testAsksAboutAConnectedPairFromBothSides() throws {

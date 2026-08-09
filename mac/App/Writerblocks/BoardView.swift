@@ -314,7 +314,7 @@ private struct AppendZone: View {
 /// Takes a plain `Block` and closures rather than a binding to the whole
 /// project, and is used through `.equatable()` so SwiftUI can skip re-rendering
 /// cards that have not changed while a drag is in flight.
-private struct BlockCardView: View, Equatable {
+struct BlockCardView: View, Equatable {
     let block: Block
     let onEdit: (String) -> Void
     let onDelete: () -> Void
