@@ -283,6 +283,7 @@
     "strandType": "setting",
     "text": "Were they born in {subject}?",
     "priority": 170,
+    "tier": "setting",
     "unlocks": [
       "place-what-brought-them",
       "place-what-keeps-them"
@@ -292,25 +293,29 @@
     "id": "place-what-brought-them",
     "strandType": "setting",
     "text": "What brought them to {subject}?",
-    "priority": 180
+    "priority": 180,
+    "tier": "setting"
   },
   {
     "id": "place-what-keeps-them",
     "strandType": "setting",
     "text": "What keeps them in {subject}?",
-    "priority": 190
+    "priority": 190,
+    "tier": "setting"
   },
   {
     "id": "place-smell",
     "strandType": "setting",
     "text": "What does {subject} smell like?",
-    "priority": 290
+    "priority": 290,
+    "tier": "location"
   },
   {
     "id": "place-sound",
     "strandType": "setting",
     "text": "What do you hear in {subject} that you would not hear anywhere else?",
-    "priority": 310
+    "priority": 310,
+    "tier": "location"
   },
   {
     "id": "place-in-charge",
@@ -334,19 +339,22 @@
     "id": "place-outside",
     "strandType": "setting",
     "text": "What's just outside {subject} that nobody goes to?",
-    "priority": 470
+    "priority": 470,
+    "tier": "location"
   },
   {
     "id": "place-weather",
     "strandType": "setting",
     "text": "What is the weather doing in {subject}, most days?",
-    "priority": 480
+    "priority": 480,
+    "tier": "setting"
   },
   {
     "id": "place-leave",
     "strandType": "setting",
     "text": "What would make someone leave {subject} for good?",
-    "priority": 490
+    "priority": 490,
+    "tier": "setting"
   },
   {
     "id": "scene-first-image",

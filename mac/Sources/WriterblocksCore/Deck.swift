@@ -118,6 +118,7 @@ public enum Deck {
                 // would store {other} unsubstituted on the block, where it
                 // would be read back in the outline for ever.
                 if template.isPair { continue }
+                if !matchesTier(template, strand.placeTier) { continue }
 
                 let key = skipKey(strand.id, template.id)
                 let asked = t.asked[key] ?? 0
@@ -224,6 +225,21 @@ public enum Deck {
             text: render(best.template.text, for: best.strand, about: best.about),
             about: best.about
         )
+    }
+
+    /// Whether a question about places is worth asking at this scale.
+    ///
+    /// A question with no tier is asked of both. A question with one is asked
+    /// only of that scale — and never of anything that is not a place at all,
+    /// so a tier put somewhere it does not belong makes the question silent
+    /// rather than quietly asking it anyway.
+    ///
+    /// Internal rather than private so the deck-integrity test can hold the
+    /// deck to the same predicate the deck itself uses. A test that reimplements
+    /// this could pass while the real filter did something else.
+    static func matchesTier(_ template: QuestionTemplate, _ tier: PlaceTier?) -> Bool {
+        guard let wanted = template.tier else { return true }
+        return wanted == tier
     }
 
     /// Whether a question already on screen is still the question it was.

@@ -9,6 +9,16 @@ public enum StrandType: String, Codable, Sendable, CaseIterable {
     case scene
 }
 
+/// The two scales of place. A setting is somewhere the story happens and
+/// somewhere a character can be *from*; a location is a spot inside one.
+///
+/// The distinction earns its keep in the deck: "were they born in Oregon?" is
+/// worth asking and "were they born in the 7-11?" is not.
+public enum PlaceTier: String, Codable, Sendable, CaseIterable {
+    case setting
+    case location
+}
+
 /// Where a block lands when the blocks are assembled into an outline.
 ///
 /// Always derived from the strand a block currently sits on (see
@@ -50,6 +60,17 @@ public struct Strand: Codable, Equatable, Identifiable, Sendable {
         self.order = order
         self.createdAt = createdAt
         self.parentStrandId = parentStrandId
+    }
+
+    /// Which scale of place this is, or nil if it is not a place at all.
+    ///
+    /// nil rather than a default matters: if a character came back as
+    /// `.setting` here, a tier put on a character question by mistake would
+    /// quietly work, and a deck that behaves correctly by accident is harder to
+    /// find a fault in than one that plainly does not.
+    public var placeTier: PlaceTier? {
+        guard type == .setting else { return nil }
+        return parentStrandId == nil ? .setting : .location
     }
 }
 
@@ -157,6 +178,9 @@ public struct QuestionTemplate: Codable, Equatable, Identifiable, Sendable {
     /// {subject}, and it is only ever asked about a pair the story has
     /// connected.
     public var pairs: Bool?
+    /// Which scale of place this is worth asking about. Absent means both.
+    /// Only meaningful on a `setting` question.
+    public var tier: PlaceTier?
 
     public var isRepeatable: Bool { repeatable ?? false }
     public var isPair: Bool { pairs ?? false }
