@@ -77,9 +77,15 @@ public enum Webs {
             || byte >= 0x80
     }
 
-    /// What to look for when hunting a strand's label in someone else's answer,
-    /// or nil if this label cannot be looked for at all.
-    static func needle(for label: String) -> [UInt8]? {
+    /// The part of a label that can actually be hunted for in a sentence, in
+    /// its original spelling — or nil if none of it can be.
+    ///
+    /// Split out from `needle` because it is useful on its own: a menu that
+    /// offers a character to write about wants to *show* the whole label,
+    /// "Marla Vance, who runs the yard…", and *insert* the part that will be
+    /// recognised again, "Marla". Inserting the whole clipped answer would be
+    /// bad prose and would not read back any better.
+    public static func matchable(for label: String) -> String? {
         var trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
         while let last = trimmed.last, last == "…" || ".,;:".contains(last) {
             trimmed.removeLast()
@@ -110,7 +116,13 @@ public enum Webs {
             .map(String.init)
         guard !words.isEmpty, words.contains(where: { !stopwords.contains($0) }) else { return nil }
 
-        return Array(lowered.utf8)
+        return trimmed
+    }
+
+    /// What to look for when hunting a strand's label in someone else's answer,
+    /// or nil if this label cannot be looked for at all.
+    static func needle(for label: String) -> [UInt8]? {
+        matchable(for: label).map { Array($0.lowercased().utf8) }
     }
 
     /// Whether `needle` appears in `haystack` as a whole word. Both must already
