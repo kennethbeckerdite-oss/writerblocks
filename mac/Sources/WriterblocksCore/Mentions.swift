@@ -13,16 +13,32 @@ public struct MentionSubject: Equatable, Identifiable, Sendable {
     /// False when nothing in this label can be recognised again, so writing it
     /// will not connect anything.
     public let isMatchable: Bool
+    /// The setting this one is, or would be, inside.
+    public let parentStrandId: String?
+    /// That setting's name, for a row that has to say where it would go.
+    public let parentLabel: String?
 
-    public var id: String { strandId ?? "new::\(type.rawValue)" }
+    /// The parent is part of the identity: several rows offering to make a new
+    /// location differ only by which setting they would put it in.
+    public var id: String { strandId ?? "new::\(type.rawValue)::\(parentStrandId ?? "")" }
     public var isNew: Bool { strandId == nil }
 
-    public init(strandId: String?, type: StrandType, label: String, writes: String, isMatchable: Bool) {
+    public init(
+        strandId: String?,
+        type: StrandType,
+        label: String,
+        writes: String,
+        isMatchable: Bool,
+        parentStrandId: String? = nil,
+        parentLabel: String? = nil
+    ) {
         self.strandId = strandId
         self.type = type
         self.label = label
         self.writes = writes
         self.isMatchable = isMatchable
+        self.parentStrandId = parentStrandId
+        self.parentLabel = parentLabel
     }
 }
 
@@ -96,26 +112,47 @@ public enum Mentions {
         // token would produce a character called "Untitled", which the matcher
         // throws out as a stopword — a character that can never be connected to
         // anything is the worst thing this menu could make.
+        let settings = project.strands
+            .filter { $0.placeTier == .setting }
+            .sorted { $0.order < $1.order }
+
         if !trimmed.isEmpty {
-            groups.append(
-                MentionGroup(
-                    heading: nil,
-                    subjects: [
-                        newSubject(.character, named: trimmed),
-                        newSubject(.setting, named: trimmed)
-                    ]
-                )
-            )
+            var new = [newSubject(.character, named: trimmed)]
+
+            // What this menu makes is a location. The setting is where the
+            // story takes place and the deck asks for it directly; the spots
+            // inside it are what turn up mid-sentence and are worth naming
+            // without leaving the question.
+            //
+            // One row per setting, because "in Oregon" and "in Cheyenne" are a
+            // different thing to make and a menu should not guess between them.
+            // With nowhere to put one yet, the row makes the setting instead.
+            if settings.isEmpty {
+                new.append(newSubject(.setting, named: trimmed))
+            } else {
+                new += settings.map { newSubject(.setting, named: trimmed, inside: $0) }
+            }
+
+            groups.append(MentionGroup(heading: nil, subjects: new))
         }
 
-        for (type, heading) in [(StrandType.character, "Characters"), (.setting, "Places")] {
-            let found = project.strands
-                .filter { $0.type == type && Mentions.matches($0.label, trimmed) }
-                .sorted { $0.order < $1.order }
-                .map(subject(for:))
-            if !found.isEmpty {
-                groups.append(MentionGroup(heading: heading, subjects: found))
-            }
+        func matching(_ strands: [Strand]) -> [MentionSubject] {
+            strands.filter { Mentions.matches($0.label, trimmed) }.map { subject(for: $0, in: project) }
+        }
+
+        let characters = project.strands
+            .filter { $0.type == .character }
+            .sorted { $0.order < $1.order }
+        let locations = project.strands
+            .filter { $0.placeTier == .location }
+            .sorted { $0.order < $1.order }
+
+        for (heading, found) in [
+            ("Characters", matching(characters)),
+            ("Setting", matching(settings)),
+            ("Locations", matching(locations))
+        ] where !found.isEmpty {
+            groups.append(MentionGroup(heading: heading, subjects: found))
         }
 
         return groups
@@ -134,8 +171,11 @@ public enum Mentions {
             .contains { $0.hasPrefix(needle) }
     }
 
-    static func subject(for strand: Strand) -> MentionSubject {
+    static func subject(for strand: Strand, in project: Project) -> MentionSubject {
         let writable = Webs.matchable(for: strand.label)
+        let parent = strand.parentStrandId.flatMap { id in
+            project.strands.first { $0.id == id }
+        }
         return MentionSubject(
             strandId: strand.id,
             type: strand.type,
@@ -144,17 +184,25 @@ public enum Mentions {
             // offer than the label itself. It will read oddly and connect
             // nothing, and the menu says so rather than failing quietly.
             writes: writable ?? strand.label,
-            isMatchable: writable != nil
+            isMatchable: writable != nil,
+            parentStrandId: parent?.id,
+            parentLabel: parent?.label
         )
     }
 
-    private static func newSubject(_ type: StrandType, named name: String) -> MentionSubject {
+    private static func newSubject(
+        _ type: StrandType,
+        named name: String,
+        inside parent: Strand? = nil
+    ) -> MentionSubject {
         MentionSubject(
             strandId: nil,
             type: type,
             label: name,
             writes: name,
-            isMatchable: Webs.matchable(for: name) != nil
+            isMatchable: Webs.matchable(for: name) != nil,
+            parentStrandId: parent?.id,
+            parentLabel: parent?.label
         )
     }
 
