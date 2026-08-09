@@ -77,7 +77,7 @@ struct AskView: View {
                         )
                         draft = ""
                         pairFocus = nil
-                        refreshQuestion()
+                        refreshQuestion(force: true)
                     }
                     .buttonStyle(.link)
 
@@ -109,16 +109,18 @@ struct AskView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 32)
         .onAppear {
-            refreshQuestion()
+            refreshQuestion(force: true)
             fieldFocused = true
         }
         .onChange(of: questionIdentity) { _, _ in fieldFocused = true }
         // Answering and skipping refresh the question themselves, so the new one
-        // is on screen in the same pass. This catches everything else — a block
-        // edited on the board, a strand added, a story reopened.
+        // is on screen in the same pass. This is the backstop for everything
+        // else — a block edited on the board, a character renamed, a story
+        // reopened — and it deliberately leaves the question alone while it is
+        // still the question that was asked.
         .onChange(of: project) { _, _ in refreshQuestion() }
-        .onChange(of: focusStrandId) { _, _ in refreshQuestion() }
-        .onChange(of: pairFocus) { _, _ in refreshQuestion() }
+        .onChange(of: focusStrandId) { _, _ in refreshQuestion(force: true) }
+        .onChange(of: pairFocus) { _, _ in refreshQuestion(force: true) }
         .onChange(of: project.strands.count) { _, _ in
             // A focused strand that was deleted must not keep filtering.
             if let id = focusStrandId, !project.strands.contains(where: { $0.id == id }) {
@@ -127,7 +129,12 @@ struct AskView: View {
         }
     }
 
-    private func refreshQuestion() {
+    /// Deal the next question. Unforced, this is a no-op while the question on
+    /// screen is still askable — so adding a character from the answer field
+    /// cannot replace the question the writer is part-way through answering.
+    private func refreshQuestion(force: Bool = false) {
+        if !force, let dealt, Deck.isStillDealable(project, dealt) { return }
+
         if let pairFocus {
             dealt = Deck.nextQuestion(
                 project,
@@ -175,6 +182,6 @@ struct AskView: View {
         // Being sent here from the web means "ask me about these two", not
         // "keep me on these two" — that is what the focus picker is for.
         pairFocus = nil
-        refreshQuestion()
+        refreshQuestion(force: true)
     }
 }
