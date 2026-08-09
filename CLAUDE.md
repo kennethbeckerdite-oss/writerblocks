@@ -34,13 +34,14 @@ mac/Sources/WriterblocksCore/      pure logic, no UI, no I/O
   Models.swift                     Project, Strand, Block, QuestionTemplate
   Questions.swift                  loads questions.json, builds gating indexes
   Deck.swift                       nextQuestion: gating, skips, spreading attention
-  Strands.swift                    every mutation: answer, spawn, move, edit, link
+  Strands.swift                    every mutation: answer, spawn, move, edit, link, retitle
   Webs.swift                       derived connections between characters
+  Mentions.swift                   the "/" rule: token, candidates, insertion
   Outline.swift                    blocks → outline sections + stats
   Markdown.swift                   outline → exportable Markdown
   StoryFile.swift                  tolerant .writerblocks reader/writer
   Resources/questions.json         the 69 questions — content, meant to be edited
-mac/Tests/WriterblocksCoreTests/   115 tests, incl. a cross-implementation fixture
+mac/Tests/WriterblocksCoreTests/   145 tests, incl. the prototype fixture
 mac/App/project.yml                XcodeGen spec (no .pbxproj in the repo)
 mac/App/Writerblocks/              SwiftUI app
   WriterblocksApp.swift            single Window, menu commands, NSApplicationDelegate
@@ -60,7 +61,7 @@ is no Node toolchain any more.
 ## Commands
 
 ```sh
-swift test --package-path mac          # 115 engine tests, no Xcode needed
+swift test --package-path mac          # 145 engine tests, no Xcode needed
 cd mac/App && xcodegen generate        # writes Writerblocks.xcodeproj (gitignored)
 open mac/App/Writerblocks.xcodeproj    # then ⌘R
 ```
@@ -154,6 +155,20 @@ always was — every story file on disk is full of those keys, and
 **The tally reads the pair link off the block, not off the template.** Deleting a
 character nulls `aboutStrandId` and leaves pair blocks behind with no other;
 keyed off the block they match nothing, which is right.
+
+**The question on screen is not re-dealt while it is still askable.**
+`Deck.isStillDealable` guards the backstop in `AskView`. Naming a character from
+the answer field adds a strand mid-sentence, and a fresh character's first
+question outranks most of the deck — so an unconditional re-deal would swap the
+question out from under a half-written answer. The question is stored on the
+block at submit time and read back in the outline for ever, so that is data
+corruption, not a wobble. A renamed subject counts as stale on purpose.
+
+**The "/" menu inserts `Webs.matchable`, not the label.** A character named from
+a whole answer has a label like "Marla Vance, who runs the yard…"; the menu shows
+that and writes "Marla". Inserting the label would be bad prose *and* would not
+be found again. The single trailing space is load-bearing too — without it the
+next keystroke glues onto the name and the connection is never made.
 
 **Pair templates are character templates**, so the ordinary candidate loop has to
 skip them explicitly. Dealt from there they would carry no other and store
