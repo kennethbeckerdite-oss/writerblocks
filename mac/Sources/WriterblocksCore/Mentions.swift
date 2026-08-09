@@ -109,12 +109,12 @@ public enum Mentions {
         }
 
         for (type, heading) in [(StrandType.character, "Characters"), (.setting, "Places")] {
-            let matches = project.strands
-                .filter { $0.type == type && matches($0.label, trimmed) }
+            let found = project.strands
+                .filter { $0.type == type && Mentions.matches($0.label, trimmed) }
                 .sorted { $0.order < $1.order }
                 .map(subject(for:))
-            if !matches.isEmpty {
-                groups.append(MentionGroup(heading: heading, subjects: matches))
+            if !found.isEmpty {
+                groups.append(MentionGroup(heading: heading, subjects: found))
             }
         }
 

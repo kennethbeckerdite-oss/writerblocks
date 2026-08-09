@@ -284,13 +284,20 @@ final class DeckTests: XCTestCase {
         // priority against nearly anything — so without this the question would
         // change under a half-written sentence, and the answer would be filed
         // under a question the writer never saw.
-        let p = try started()
+        var p = try started()
+        // Walk forward until the question on screen sits further down the deck
+        // than a fresh character's first one, which is where the hazard bites.
+        // Early on the premise still outranks it and nothing would move anyway.
+        while let next = Deck.nextQuestion(p), next.template.priority <= 30 {
+            p = Stories.applyAnswer(p, next, "x")
+        }
+
         let dealt = try XCTUnwrap(Deck.nextQuestion(p))
         let after = Stories.addStrand(p, type: .character, label: "Howard")
 
         XCTAssertNotEqual(
             Deck.nextQuestion(after)?.template.id, dealt.template.id,
-            "precondition: adding a character is supposed to change what the deck would deal"
+            "precondition: a fresh character is supposed to outrank the question on screen"
         )
         XCTAssertTrue(Deck.isStillDealable(after, dealt))
     }
