@@ -345,6 +345,49 @@ final class DeckTests: XCTestCase {
         XCTAssertFalse(Deck.isStillDealable(deleted, dealt))
     }
 
+    // MARK: - Two scales of place
+
+    func testAsksAboutABornInQuestionOfASettingAndNotOfALocation() throws {
+        var p = Stories.createProject()
+        p = Stories.addStrand(p, type: .setting, label: "Oregon")
+        let oregon = try XCTUnwrap(p.strands.last)
+        p = Stories.addStrand(p, type: .setting, label: "The 7-11", parentStrandId: oregon.id)
+        let store = try XCTUnwrap(p.strands.last)
+
+        // The whole point of the split: one of these reads as a question and
+        // the other does not.
+        XCTAssertTrue(offered(p, for: oregon.id).contains("place-born-here"))
+        XCTAssertFalse(offered(p, for: store.id).contains("place-born-here"))
+        XCTAssertFalse(offered(p, for: store.id).contains("place-weather"))
+    }
+
+    func testAsksALocationTheThingsOnlyASpotHas() throws {
+        var p = Stories.createProject()
+        p = Stories.addStrand(p, type: .setting, label: "Oregon")
+        let oregon = try XCTUnwrap(p.strands.last)
+        p = Stories.addStrand(p, type: .setting, label: "The 7-11", parentStrandId: oregon.id)
+        let store = try XCTUnwrap(p.strands.last)
+
+        XCTAssertTrue(offered(p, for: store.id).contains("place-smell"))
+        XCTAssertFalse(offered(p, for: oregon.id).contains("place-smell"))
+        // ...and both still get the ones that read either way.
+        XCTAssertTrue(offered(p, for: store.id).contains("place-one-rule"))
+        XCTAssertTrue(offered(p, for: oregon.id).contains("place-one-rule"))
+    }
+
+    func testALocationOrphanedByADeleteIsAskedAsASettingAgain() throws {
+        var p = Stories.createProject()
+        p = Stories.addStrand(p, type: .setting, label: "Oregon")
+        let oregon = try XCTUnwrap(p.strands.last)
+        p = Stories.addStrand(p, type: .setting, label: "The 7-11", parentStrandId: oregon.id)
+        let store = try XCTUnwrap(p.strands.last)
+        XCTAssertFalse(offered(p, for: store.id).contains("place-born-here"))
+
+        // No third state: a place with no parent is a setting, everywhere.
+        p = Stories.deleteStrand(p, strandId: oregon.id)
+        XCTAssertTrue(offered(p, for: store.id).contains("place-born-here"))
+    }
+
     // MARK: - Questions about two people
 
     /// Marla and Howard, connected, in a story with enough in it for the web to

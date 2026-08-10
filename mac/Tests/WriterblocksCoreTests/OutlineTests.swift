@@ -146,6 +146,78 @@ final class OutlineTests: XCTestCase {
         XCTAssertEqual(s.open, 1)
         XCTAssertEqual(s.characters, 1)
         XCTAssertEqual(s.settings, 1)
+        XCTAssertEqual(s.locations, 0)
+        XCTAssertEqual(s.places, 1)
+    }
+
+    // MARK: - Places inside places
+
+    /// Oregon, with the 7-11 inside it.
+    private func nested(settingHasBlocks: Bool) throws -> Project {
+        var p = Stories.createProject(title: "The Wreck")
+        p = Stories.addStrand(p, type: .setting, label: "Oregon")
+        let oregon = try XCTUnwrap(p.strands.last)
+        p = Stories.addStrand(p, type: .setting, label: "The 7-11", parentStrandId: oregon.id)
+        let store = try XCTUnwrap(p.strands.last)
+
+        if settingHasBlocks {
+            p = Stories.addFreeBlock(p, strandId: oregon.id, answer: "Rain the whole way.")
+        }
+        p = Stories.addFreeBlock(p, strandId: store.id, answer: "The coffee is always burnt.")
+        return p
+    }
+
+    func testPutsALocationUnderTheSettingItIsIn() throws {
+        let outline = OutlineBuilder.build(try nested(settingHasBlocks: true))
+        let places = try XCTUnwrap(outline.first { $0.section == .setting })
+
+        XCTAssertEqual(places.groups.map(\.heading), ["Oregon", "The 7-11"])
+        XCTAssertEqual(places.groups.map(\.depth), [0, 1])
+    }
+
+    func testKeepsASettingThatOnlyHoldsLocations() throws {
+        // Dropping it because nothing was written *about* Oregon would take the
+        // heading that says where the 7-11 is.
+        let outline = OutlineBuilder.build(try nested(settingHasBlocks: false))
+        let places = try XCTUnwrap(outline.first { $0.section == .setting })
+
+        XCTAssertEqual(places.groups.map(\.heading), ["Oregon", "The 7-11"])
+        XCTAssertTrue(places.groups[0].blocks.isEmpty)
+        XCTAssertEqual(places.groups[1].blocks.count, 1)
+    }
+
+    func testLeavesOutASettingWhoseLocationsAreAllEmptyToo() throws {
+        var p = Stories.createProject()
+        p = Stories.addStrand(p, type: .setting, label: "Oregon")
+        let oregon = try XCTUnwrap(p.strands.last)
+        p = Stories.addStrand(p, type: .setting, label: "The 7-11", parentStrandId: oregon.id)
+
+        XCTAssertNil(OutlineBuilder.build(p).first { $0.section == .setting })
+    }
+
+    func testCountsTheTwoScalesOfPlaceApartAndTogether() throws {
+        let s = OutlineBuilder.stats(try nested(settingHasBlocks: true))
+        XCTAssertEqual(s.settings, 1)
+        XCTAssertEqual(s.locations, 1)
+        XCTAssertEqual(s.places, 2)
+    }
+
+    func testWritesALocationOneLevelDeeperInMarkdown() throws {
+        let md = Markdown.render(try nested(settingHasBlocks: true))
+
+        XCTAssertTrue(md.contains("### Oregon"))
+        XCTAssertTrue(md.contains("#### The 7-11"))
+    }
+
+    func testDoesNotLeaveAHoleWhereASettingHasNothingOfItsOwn() throws {
+        // An empty group puts the blank after its heading straight next to the
+        // blank after its blocks. The existing guard against that never sees
+        // this case, because no other test builds one.
+        let md = Markdown.render(try nested(settingHasBlocks: false))
+
+        XCTAssertTrue(md.contains("### Oregon"))
+        XCTAssertTrue(md.contains("#### The 7-11"))
+        XCTAssertFalse(md.contains("\n\n\n"))
     }
 
     // MARK: - Markdown

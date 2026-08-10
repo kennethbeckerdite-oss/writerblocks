@@ -61,15 +61,18 @@ struct OutlineDocumentView: View {
                             ForEach(section.groups) { group in
                                 if let heading = group.heading {
                                     Text(heading)
-                                        .font(.headline)
+                                        .font(group.depth > 0 ? .subheadline : .headline)
+                                        .fontWeight(group.depth > 0 ? .semibold : nil)
                                         .foregroundStyle(.tint)
-                                        .padding(.top, 14)
+                                        .padding(.top, group.depth > 0 ? 10 : 14)
                                         .padding(.bottom, 4)
+                                        .padding(.leading, CGFloat(group.depth) * 16)
                                 }
 
                                 ForEach(group.blocks) { block in
                                     line(block)
                                         .padding(.vertical, 3)
+                                        .padding(.leading, CGFloat(group.depth) * 16)
                                 }
                             }
                         }

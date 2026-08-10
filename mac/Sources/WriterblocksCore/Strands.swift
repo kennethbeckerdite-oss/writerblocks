@@ -64,15 +64,42 @@ public enum Stories {
         )
     }
 
-    public static func addStrand(_ project: Project, type: StrandType, label: String) -> Project {
+    /// Whether `parentId` may be the parent of a strand of `type`.
+    ///
+    /// Shared by the one place that creates strands and the one that reads them
+    /// off disk, so the rule cannot drift between them. Places nest exactly two
+    /// deep: a location sits in a setting, and a setting sits in nothing.
+    static func parentIsUsable(
+        _ parentId: String,
+        for type: StrandType,
+        childId: String?,
+        in strands: [Strand]
+    ) -> Bool {
+        guard type == .setting, parentId != childId else { return false }
+        guard let parent = strands.first(where: { $0.id == parentId }) else { return false }
+        return parent.type == .setting && parent.parentStrandId == nil
+    }
+
+    public static func addStrand(
+        _ project: Project,
+        type: StrandType,
+        label: String,
+        parentStrandId: String? = nil
+    ) -> Project {
         let trimmed = label.trimmingCharacters(in: .whitespacesAndNewlines)
         let order = (project.strands.map(\.order).max()).map { $0 + 1 } ?? 0
+        // Validated rather than trusted. A parent that does not hold up is
+        // dropped and the strand is still made — it is simply a setting.
+        let parent = parentStrandId.flatMap {
+            parentIsUsable($0, for: type, childId: nil, in: project.strands) ? $0 : nil
+        }
         let strand = Strand(
             id: newId(),
             type: type,
             label: trimmed.isEmpty ? "Untitled" : trimmed,
             order: order,
-            createdAt: now()
+            createdAt: now(),
+            parentStrandId: parent
         )
         return touched(project) { $0.strands.append(strand) }
     }
@@ -97,6 +124,13 @@ public enum Stories {
             // reading once Howard is gone; a pointer to nothing is not.
             for i in p.blocks.indices where p.blocks[i].aboutStrandId == strandId {
                 p.blocks[i].aboutStrandId = nil
+            }
+            // Locations inside a deleted setting keep everything they had and
+            // become settings in their own right. Deleting Oregon should not
+            // take the 7-11 and every sentence about it, and an orphan needs no
+            // state of its own — a place with no parent is just a setting.
+            for i in p.strands.indices where p.strands[i].parentStrandId == strandId {
+                p.strands[i].parentStrandId = nil
             }
         }
     }

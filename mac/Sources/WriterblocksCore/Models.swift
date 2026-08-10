@@ -9,6 +9,16 @@ public enum StrandType: String, Codable, Sendable, CaseIterable {
     case scene
 }
 
+/// The two scales of place. A setting is somewhere the story happens and
+/// somewhere a character can be *from*; a location is a spot inside one.
+///
+/// The distinction earns its keep in the deck: "were they born in Oregon?" is
+/// worth asking and "were they born in the 7-11?" is not.
+public enum PlaceTier: String, Codable, Sendable, CaseIterable {
+    case setting
+    case location
+}
+
 /// Where a block lands when the blocks are assembled into an outline.
 ///
 /// Always derived from the strand a block currently sits on (see
@@ -28,13 +38,39 @@ public struct Strand: Codable, Equatable, Identifiable, Sendable {
     public var label: String
     public var order: Int
     public var createdAt: Double
+    /// The setting this one sits inside — the 7-11 in Oregon, the kitchen in
+    /// the house. nil for everything else, including a setting itself.
+    ///
+    /// Only ever set on a `.setting` strand, and only ever pointing at a
+    /// `.setting` with no parent of its own: places nest exactly two deep. See
+    /// `Stories.parentIsUsable`.
+    public var parentStrandId: String?
 
-    public init(id: String, type: StrandType, label: String, order: Int, createdAt: Double) {
+    public init(
+        id: String,
+        type: StrandType,
+        label: String,
+        order: Int,
+        createdAt: Double,
+        parentStrandId: String? = nil
+    ) {
         self.id = id
         self.type = type
         self.label = label
         self.order = order
         self.createdAt = createdAt
+        self.parentStrandId = parentStrandId
+    }
+
+    /// Which scale of place this is, or nil if it is not a place at all.
+    ///
+    /// nil rather than a default matters: if a character came back as
+    /// `.setting` here, a tier put on a character question by mistake would
+    /// quietly work, and a deck that behaves correctly by accident is harder to
+    /// find a fault in than one that plainly does not.
+    public var placeTier: PlaceTier? {
+        guard type == .setting else { return nil }
+        return parentStrandId == nil ? .setting : .location
     }
 }
 
@@ -142,6 +178,9 @@ public struct QuestionTemplate: Codable, Equatable, Identifiable, Sendable {
     /// {subject}, and it is only ever asked about a pair the story has
     /// connected.
     public var pairs: Bool?
+    /// Which scale of place this is worth asking about. Absent means both.
+    /// Only meaningful on a `setting` question.
+    public var tier: PlaceTier?
 
     public var isRepeatable: Bool { repeatable ?? false }
     public var isPair: Bool { pairs ?? false }
@@ -172,6 +211,17 @@ public struct OutlineGroup: Equatable, Identifiable, Sendable {
     public let id: String
     public let heading: String?
     public let blocks: [Block]
+    /// How far in this sits: 0 for a subject in its own right, 1 for a location
+    /// inside a setting. Flat rather than a tree of children, because two
+    /// levels is the whole of it and a tree would be shape without a use.
+    public let depth: Int
+
+    public init(id: String, heading: String?, blocks: [Block], depth: Int = 0) {
+        self.id = id
+        self.heading = heading
+        self.blocks = blocks
+        self.depth = depth
+    }
 }
 
 public struct OutlineSectionView: Equatable, Identifiable, Sendable {

@@ -20,6 +20,7 @@ final class QuestionsTests: XCTestCase {
         XCTAssertEqual(Questions.all.filter { $0.hint != nil }.count, 8)
         XCTAssertEqual(Questions.all.filter { $0.titles == true }.count, 1)
         XCTAssertEqual(Questions.all.filter(\.isPair).count, 6)
+        XCTAssertEqual(Questions.all.filter { $0.tier != nil }.count, 8)
     }
 
     func testSomethingNamesTheStory() {
@@ -164,9 +165,64 @@ final class QuestionsTests: XCTestCase {
         }
     }
 
-    func testEverySectionAsksSomething() {
+    /// Every subject the deck can land on, and what it can ask about it.
+    ///
+    /// Not `StrandType.allCases` any more: a place is asked different things
+    /// depending on its scale, so counting by type alone could show twelve
+    /// questions for settings while locations had one.
+    private var buckets: [(name: String, questions: [QuestionTemplate])] {
+        var out: [(String, [QuestionTemplate])] = []
         for type in StrandType.allCases {
-            XCTAssertGreaterThan(Questions.all.filter { $0.strandType == type }.count, 3, "\(type)")
+            let tiers: [PlaceTier?] = type == .setting ? [.setting, .location] : [nil]
+            for tier in tiers {
+                let asked = Questions.all.filter {
+                    // Pair questions are character questions the ordinary loop
+                    // skips, so counting them would inflate this.
+                    $0.strandType == type && !$0.isPair && Deck.matchesTier($0, tier)
+                }
+                out.append((tier.map { "\(type)/\($0.rawValue)" } ?? "\(type)", asked))
+            }
+        }
+        return out
+    }
+
+    func testEverySubjectAsksSomething() {
+        for bucket in buckets {
+            XCTAssertGreaterThan(bucket.questions.count, 3, bucket.name)
+        }
+    }
+
+    func testAScaleOfPlaceIsOnlyMarkedOnAQuestionAboutPlaces() {
+        // On anything else the tier is either ignored or silently fatal, and
+        // "ignored" is the worse of the two — a deck that behaves correctly by
+        // accident is harder to find a fault in than one that plainly does not.
+        for q in Questions.all where q.tier != nil {
+            XCTAssertEqual(q.strandType, .setting, "\(q.id) has a tier but is not about a place")
+        }
+    }
+
+    func testAGatedQuestionIsReachableAtEveryScaleItIsAskedAt() {
+        // A follow-up asked of both scales, behind a parent only ever asked of
+        // settings, would be permanently invisible on a location: offered by
+        // the deck, and gated behind something that is never asked there.
+        //
+        // Union, not per-edge, because isUnlocked opens a question when *any*
+        // parent has been answered.
+        func tiers(_ q: QuestionTemplate) -> Set<PlaceTier> {
+            guard q.strandType == .setting else { return [] }
+            return q.tier.map { [$0] } ?? Set(PlaceTier.allCases)
+        }
+
+        for id in Questions.gatedIds {
+            guard let child = Questions.question(id) else { continue }
+            let reachable = Questions.parentsOf(id)
+                .compactMap(Questions.question)
+                .reduce(into: Set<PlaceTier>()) { $0.formUnion(tiers($1)) }
+
+            XCTAssertTrue(
+                tiers(child).isSubset(of: reachable),
+                "\(id) is asked at a scale none of its parents are"
+            )
         }
     }
 }

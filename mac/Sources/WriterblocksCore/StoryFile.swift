@@ -34,9 +34,10 @@ public enum StoryFile {
               let rawBlocks = dict["blocks"] as? [Any]
         else { return nil }
 
-        let strands = rawStrands.enumerated().compactMap { parseStrand($0.element, index: $0.offset) }
+        var strands = rawStrands.enumerated().compactMap { parseStrand($0.element, index: $0.offset) }
         // A story with no readable strand has nothing to hang blocks on.
         if strands.isEmpty { return nil }
+        strands = normalisedParents(strands)
 
         let strandIds = Set(strands.map(\.id))
         let blocks = rawBlocks.enumerated().compactMap {
@@ -68,8 +69,33 @@ public enum StoryFile {
             type: type,
             label: string(dict["label"], "Untitled"),
             order: int(dict["order"], index),
-            createdAt: double(dict["createdAt"], Date().timeIntervalSince1970 * 1000)
+            createdAt: double(dict["createdAt"], Date().timeIntervalSince1970 * 1000),
+            parentStrandId: nonEmpty(dict["parentStrandId"])
         )
+    }
+
+    /// Drop any parent link the file should not have had.
+    ///
+    /// Judged in one pass against the strands as written, never by following
+    /// the chain: a file claiming A is inside B and B is inside A would send a
+    /// resolver round for ever, or convince it both were fine. Asking only
+    /// "does my parent have a parent?" settles it, and enforces the two-deep
+    /// rule at the same time.
+    ///
+    /// A bad link costs the link and never the strand — losing a place and
+    /// every sentence in it over one wrong id is not a trade this reader makes.
+    private static func normalisedParents(_ strands: [Strand]) -> [Strand] {
+        guard strands.contains(where: { $0.parentStrandId != nil }) else { return strands }
+
+        var out = strands
+        for i in out.indices {
+            guard let parentId = out[i].parentStrandId else { continue }
+            let keep = Stories.parentIsUsable(
+                parentId, for: out[i].type, childId: out[i].id, in: strands
+            )
+            if !keep { out[i].parentStrandId = nil }
+        }
+        return out
     }
 
     private static func parseBlock(_ value: Any?, index: Int, strandIds: Set<String>) -> Block? {

@@ -71,20 +71,52 @@ final class MentionsTests: XCTestCase {
         XCTAssertFalse(labels.contains("Scenes"))
     }
 
-    func testSegmentsCharactersAndPlaces() throws {
-        let groups = Mentions.candidates(story(), token: "")
-        XCTAssertEqual(groups.map(\.heading), ["Characters", "Places"])
+    func testSegmentsCharactersSettingAndLocations() throws {
+        var p = story()
+        let diner = try XCTUnwrap(p.strands.first { $0.label == "The diner" })
+        p = Stories.addStrand(p, type: .setting, label: "The back booth", parentStrandId: diner.id)
+
+        let groups = Mentions.candidates(p, token: "")
+        XCTAssertEqual(groups.map(\.heading), ["Characters", "Setting", "Locations"])
         XCTAssertEqual(groups[0].subjects.map(\.label), ["Marla", "Howard"])
         XCTAssertEqual(groups[1].subjects.map(\.label), ["The diner"])
+        XCTAssertEqual(groups[2].subjects.map(\.label), ["The back booth"])
+        XCTAssertEqual(groups[2].subjects.first?.parentLabel, "The diner")
     }
 
     func testPutsMakingSomethingNewFirst() throws {
         let groups = Mentions.candidates(story(), token: "sam")
         let first = try XCTUnwrap(groups.first)
         XCTAssertNil(first.heading)
-        XCTAssertEqual(first.subjects.map(\.type), [.character, .setting])
         XCTAssertTrue(first.subjects.allSatisfy(\.isNew))
         XCTAssertEqual(first.subjects.first?.label, "sam")
+
+        // What the menu makes is a location. The setting is what the deck asks
+        // for; the spots inside it are what turn up mid-sentence.
+        XCTAssertEqual(first.subjects.map(\.type), [.character, .setting])
+        XCTAssertEqual(first.subjects.last?.parentLabel, "The diner")
+    }
+
+    func testOffersOneNewLocationRowPerSetting() throws {
+        var p = story()
+        p = Stories.addStrand(p, type: .setting, label: "Oregon")
+
+        let new = try XCTUnwrap(Mentions.candidates(p, token: "sam").first).subjects
+        let places = new.filter { $0.type == .setting }
+        XCTAssertEqual(places.map(\.parentLabel), ["The diner", "Oregon"])
+
+        // They differ only by where they would go, so they must not share an
+        // identity — one row would silently stand in for the other.
+        XCTAssertEqual(Set(places.map(\.id)).count, places.count)
+    }
+
+    func testMakesTheSettingItselfWhenThereIsNowhereToPutALocation() throws {
+        var p = Stories.createProject()
+        p = Stories.addStrand(p, type: .character, label: "Marla")
+
+        let new = try XCTUnwrap(Mentions.candidates(p, token: "oregon").first).subjects
+        let place = try XCTUnwrap(new.first { $0.type == .setting })
+        XCTAssertNil(place.parentStrandId, "with no setting yet, the row makes one")
     }
 
     func testWillNotMakeSomethingWithNoName() {

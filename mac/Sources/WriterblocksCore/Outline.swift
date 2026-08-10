@@ -16,8 +16,14 @@ public struct ProjectStats: Equatable, Sendable {
     public let answered: Int
     public let open: Int
     public let characters: Int
+    /// Places the story happens in — not the spots inside them.
     public let settings: Int
+    /// Spots inside a setting.
+    public let locations: Int
     public let scenes: Int
+
+    /// What a writer thinks of as "places", which is both.
+    public var places: Int { settings + locations }
 }
 
 public enum OutlineBuilder {
@@ -27,7 +33,7 @@ public enum OutlineBuilder {
     private static let headings: [OutlineSection: String] = [
         .premise: "Premise",
         .character: "Characters",
-        .setting: "Places",
+        .setting: "Setting",
         .structure: "Shape of the story"
     ]
 
@@ -53,6 +59,55 @@ public enum OutlineBuilder {
         return groups
     }
 
+    /// Settings, each followed by the locations inside it.
+    ///
+    /// The thing that can be left out is the whole subtree, not the strand. A
+    /// setting the writer has said nothing about but has put three locations
+    /// inside still has to appear, or those locations lose the heading that
+    /// says where they are — so a setting here may legitimately be a heading
+    /// with nothing under it.
+    ///
+    /// Sorting by `order` alone would interleave: make Cheyenne, the 7-11,
+    /// Portland, then Cheyenne's kitchen, and the kitchen files under Portland.
+    private static func placeGroups(_ project: Project, _ places: [Strand]) -> [OutlineGroup] {
+        func blocks(of strand: Strand) -> [Block] {
+            project.blocks.filter { $0.strandId == strand.id }.sorted { $0.order < $1.order }
+        }
+
+        // Reading a story file normalises a parent that does not hold up, but a
+        // Project can also be built in code — so anything whose setting is not
+        // here stands on its own rather than vanishing.
+        let settingIds = Set(places.filter { $0.parentStrandId == nil }.map(\.id))
+        func standsAlone(_ strand: Strand) -> Bool {
+            guard let parent = strand.parentStrandId else { return true }
+            return !settingIds.contains(parent)
+        }
+
+        var groups: [OutlineGroup] = []
+        for setting in places where standsAlone(setting) {
+            let own = blocks(of: setting)
+            let inside = places
+                .filter { $0.parentStrandId == setting.id }
+                .map { (strand: $0, blocks: blocks(of: $0)) }
+                .filter { !$0.blocks.isEmpty }
+
+            if own.isEmpty && inside.isEmpty { continue }
+
+            groups.append(OutlineGroup(id: setting.id, heading: setting.label, blocks: own))
+            for location in inside {
+                groups.append(
+                    OutlineGroup(
+                        id: location.strand.id,
+                        heading: location.strand.label,
+                        blocks: location.blocks,
+                        depth: 1
+                    )
+                )
+            }
+        }
+        return groups
+    }
+
     public static func build(_ project: Project) -> Outline {
         let strands = project.strands.sorted { $0.order < $1.order }
         var sections: Outline = []
@@ -69,6 +124,8 @@ public enum OutlineBuilder {
                     project.blocks.filter { $0.strandId == strand.id }
                 }
                 groups = structureGroups(pooled)
+            } else if section == .setting {
+                groups = placeGroups(project, relevant)
             } else {
                 groups = relevant.compactMap { strand in
                     let blocks = project.blocks
@@ -102,6 +159,10 @@ public enum OutlineBuilder {
             project.strands.filter { $0.type == type }.count
         }
 
+        func count(_ tier: PlaceTier) -> Int {
+            project.strands.filter { $0.placeTier == tier }.count
+        }
+
         let sceneStrandIds = Set(project.strands.filter { $0.type == .scene }.map(\.id))
         let sceneBlocks = project.blocks.filter { sceneStrandIds.contains($0.strandId) }.count
 
@@ -110,7 +171,8 @@ public enum OutlineBuilder {
             answered: answered,
             open: project.blocks.count - answered,
             characters: count(.character),
-            settings: count(.setting),
+            settings: count(PlaceTier.setting),
+            locations: count(PlaceTier.location),
             scenes: sceneBlocks
         )
     }

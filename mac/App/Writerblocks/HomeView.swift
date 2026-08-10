@@ -221,8 +221,8 @@ private struct StoryCardView: View {
         if story.stats.characters > 0 {
             parts.append("\(story.stats.characters) character\(story.stats.characters == 1 ? "" : "s")")
         }
-        if story.stats.settings > 0 {
-            parts.append("\(story.stats.settings) place\(story.stats.settings == 1 ? "" : "s")")
+        if story.stats.places > 0 {
+            parts.append("\(story.stats.places) place\(story.stats.places == 1 ? "" : "s")")
         }
         if story.stats.open > 0 { parts.append("\(story.stats.open) open") }
         return parts.joined(separator: " · ")

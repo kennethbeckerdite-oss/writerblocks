@@ -192,6 +192,66 @@ final class StoriesTests: XCTestCase {
         XCTAssertEqual(p.title, "Deep Water")
     }
 
+    // MARK: - Places inside places
+
+    private func withSetting(_ label: String = "Oregon") -> (Project, Strand) {
+        let p = Stories.addStrand(Stories.createProject(), type: .setting, label: label)
+        return (p, p.strands.last!)
+    }
+
+    func testPutsALocationInsideASetting() throws {
+        var (p, oregon) = withSetting()
+        p = Stories.addStrand(p, type: .setting, label: "The 7-11", parentStrandId: oregon.id)
+
+        let store = try XCTUnwrap(p.strands.first { $0.label == "The 7-11" })
+        XCTAssertEqual(store.parentStrandId, oregon.id)
+        XCTAssertNil(p.strands.first { $0.id == oregon.id }?.parentStrandId)
+    }
+
+    func testRefusesAParentThatWouldNotHoldUp() throws {
+        var (p, oregon) = withSetting()
+        p = Stories.addStrand(p, type: .setting, label: "The 7-11", parentStrandId: oregon.id)
+        let store = try XCTUnwrap(p.strands.first { $0.label == "The 7-11" })
+        let marla = try XCTUnwrap(
+            Stories.addStrand(p, type: .character, label: "Marla").strands.last
+        )
+
+        func parentOf(_ label: String, _ project: Project) -> String?? {
+            project.strands.first { $0.label == label }?.parentStrandId
+        }
+
+        // Nothing to point at.
+        var made = Stories.addStrand(p, type: .setting, label: "A", parentStrandId: "gone")
+        XCTAssertEqual(parentOf("A", made), .some(nil))
+
+        // Places nest two deep, never three.
+        made = Stories.addStrand(p, type: .setting, label: "B", parentStrandId: store.id)
+        XCTAssertEqual(parentOf("B", made), .some(nil))
+
+        // A person is not somewhere you can be inside of.
+        var withMarla = Stories.addStrand(p, type: .character, label: "Marla")
+        withMarla = Stories.addStrand(withMarla, type: .setting, label: "C", parentStrandId: marla.id)
+        XCTAssertEqual(parentOf("C", withMarla), .some(nil))
+
+        // ...and a character is never inside anything.
+        withMarla = Stories.addStrand(p, type: .character, label: "Jim", parentStrandId: oregon.id)
+        XCTAssertEqual(parentOf("Jim", withMarla), .some(nil))
+    }
+
+    func testDeletingASettingLeavesItsLocationsStanding() throws {
+        var (p, oregon) = withSetting()
+        p = Stories.addStrand(p, type: .setting, label: "The 7-11", parentStrandId: oregon.id)
+        let store = try XCTUnwrap(p.strands.first { $0.label == "The 7-11" })
+        p = Stories.addFreeBlock(p, strandId: store.id, answer: "The coffee is always burnt.")
+
+        p = Stories.deleteStrand(p, strandId: oregon.id)
+
+        // Everything written about the 7-11 survives; it is simply a setting now.
+        let after = try XCTUnwrap(p.strands.first { $0.id == store.id })
+        XCTAssertNil(after.parentStrandId)
+        XCTAssertEqual(p.blocks.filter { $0.strandId == store.id }.count, 1)
+    }
+
     // MARK: - Linking two characters
 
     func testDrawingALinkOpensAQuestionAboutTheTwoOfThem() throws {

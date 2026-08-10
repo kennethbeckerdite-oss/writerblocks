@@ -31,7 +31,7 @@ now the only implementation — the React web prototype has been removed.
 ```
 mac/Package.swift                  SwiftPM package — the engine
 mac/Sources/WriterblocksCore/      pure logic, no UI, no I/O
-  Models.swift                     Project, Strand, Block, QuestionTemplate
+  Models.swift                     Project, Strand, Block, QuestionTemplate, PlaceTier
   Questions.swift                  loads questions.json, builds gating indexes
   Deck.swift                       nextQuestion: gating, skips, spreading attention
   Strands.swift                    every mutation: answer, spawn, move, edit, link, retitle
@@ -164,6 +164,33 @@ question out from under a half-written answer. The question is stored on the
 block at submit time and read back in the outline for ever, so that is data
 corruption, not a wobble. A renamed subject counts as stale on purpose.
 
+**A location is a `.setting` strand with a parent, not a fifth `StrandType`.**
+Adding an enum case would make an older build drop those strands *and every
+block on them*, then overwrite the file 600ms later with no version history —
+`StoryFile.parseStrand` rejects an unknown `type` and `compactMap` swallows it.
+A field costs an older build only the nesting. Places nest exactly two deep,
+enforced by `Stories.parentIsUsable`, which both `addStrand` and the file reader
+call so the rule cannot drift.
+
+**The parent link is judged in one pass, never by following the chain.** A file
+claiming A is inside B and B is inside A would send a resolver round for ever or
+declare both fine. Asking only "does my parent have a parent?" settles it and
+enforces the depth limit at once. A bad link costs the link, never the strand.
+
+**A place with no parent is a setting, everywhere** — deck, outline, board,
+stats. Deleting a setting orphans its locations rather than cascading, and that
+is what keeps there from being a third state anywhere in the system.
+
+**In the outline, the thing that can be dropped is the subtree.** A setting the
+writer has said nothing about but has put locations inside still renders, or
+those locations lose the heading saying where they are. That makes an empty
+group possible, which is why `Markdown` only writes a trailing blank line for a
+group that has blocks — otherwise the export grows a hole, and the existing
+`\n\n\n` assertion would not have caught it because no test built that case.
+
+**`Deck.matchesTier` is called by the deck-integrity test, not reimplemented in
+it.** A test that copies the filter can pass while the deck filters differently.
+
 **The "/" menu inserts `Webs.matchable`, not the label.** A character named from
 a whole answer has a label like "Marla Vance, who runs the yard…"; the menu shows
 that and writes "Marla". Inserting the label would be bad prose *and* would not
@@ -192,6 +219,12 @@ tests would have carried the same wrong assumptions into the assertions. There
 is no longer a second implementation to regenerate it from, so if it ever has to
 change, that is a decision to make deliberately and explain, not a file to
 update until the build goes green.
+
+It has changed exactly once since the prototype went, when the outline section
+became "Setting". One line of `story.expected.md`; `story.writerblocks.json`
+untouched. The reasoning is in that commit — the heading is our word for the
+section and the prototype had no opinion about two tiers of place, so nothing
+the fixture is *for* moved.
 
 ## Decisions already made, with reasons
 
@@ -236,6 +269,14 @@ Open panel.
    connecting to Howard — can only be removed by editing the sentence. A
    suppression list would be stored state contradicting derived state, which is
    the trap `Webs` exists to avoid. Revisit only if it actually annoys someone.
-6. **The web's two thresholds are guesses** — `Webs.minCharacters` (2) and
+6. **No way to move a location to a different setting.** Deleting its setting
+   orphans it into a setting of its own, and the only way back in is to make a
+   new one. Needs a `setParent` with a descendant check, next to
+   `Stories.parentIsUsable`.
+7. **Locations have no questions of their own yet** — they are asked the three
+   place questions that suit a specific spot plus the four that read either
+   way. Four or five written for locations would fill the gap between
+   `place-like` at 160 and `place-smell` at 290.
+8. **The web's two thresholds are guesses** — `Webs.minCharacters` (2) and
    `Webs.minBlocks` (15). The second is a feel judgement about when a graph
    stops being discouraging, and has never been tried on a real story.
